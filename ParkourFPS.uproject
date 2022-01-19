@@ -1,0 +1,16 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "{81463A8F-4B2D-BB45-0303-1E8340D7A057}",
+	"Category": "",
+	"Description": "",
+	"Modules": [
+		{
+			"Name": "ParkourFPS",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"Engine"
+			]
+		}
+	]
+}
