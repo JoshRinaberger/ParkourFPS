@@ -8,7 +8,7 @@
 
 class UParkourMovementComponent;
 
-UCLASS(config=Game)
+UCLASS(config=Game, Blueprintable)
 class PARKOURFPS_API AParkourFPSCharacter : public ACharacter
 {
 	GENERATED_BODY()

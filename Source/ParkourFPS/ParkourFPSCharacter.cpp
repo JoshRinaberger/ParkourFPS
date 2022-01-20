@@ -8,6 +8,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "ParkourMovementComponent.h"
 
 //////////////////////////////////////////////////////////////////////////
 // AParkourFPSCharacter
@@ -138,6 +139,7 @@ void AParkourFPSCharacter::MoveRight(float Value)
 		AddMovementInput(Direction, Value);
 	}
 }
+
 
 UParkourMovementComponent* AParkourFPSCharacter::GetParkourMovementComponent() const
 {
