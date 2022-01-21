@@ -11,6 +11,7 @@
  */
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMovementCorrections, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogParkourMovement, Log, All);
 
 UCLASS()
 class PARKOURFPS_API UParkourMovementComponent : public UCharacterMovementComponent
@@ -20,13 +21,45 @@ class PARKOURFPS_API UParkourMovementComponent : public UCharacterMovementCompon
 	friend class FSavedMove_My;
 
 private:
-	bool MovementKey1Down;
-	bool MovementKey2Down;
-	bool MovementKey3Down;
+	// used for wallrunning
+	bool MovementKey1Down = false;
+	// used for sliding
+	bool MovementKey2Down = false;
+	// user for ???
+	bool MovementKey3Down = false;
+
+	uint8 WantsToWallRun;
+	uint8 WantsToSlide;
+
+	bool IsWallRunning = false;
+	bool IsWallRunningL = false;
+	bool IsWallRunningR = false;
+
+	FVector WallRunNormal;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Custom Character Movement|Wall Running", Meta = (AllowPrivateAccess = "true"))
+	float WallRunLineTraceVerticalTolerance = 50.0f;
 	
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+
+	bool CheckCanWallRun(const FHitResult Hit);
+	bool CheckWallRunFloor();
+	bool CheckWallRunTraces();
+	FVector GetWallRunEndVectorL();
+	FVector GetWallRunEndVectorR();
+	bool IsValidWallRunVector(FVector InVec, bool SaveVector);
+	FVector PlayerToWallVector();
+	bool BeginWallRun();
+	void EndWallRun();
+	void PhysWallRun(float deltaTime, int32 Iterations);
+	bool IsNextToWall(float vertical_tolerance = 0.0f);
+	bool CanSurfaceBeWallRan(const FVector& surface_normal) const;
+	int FindWallRunSide(const FVector& surface_normal);
+
+	UFUNCTION()
+	void OnActorHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit);
 
 public:
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
@@ -46,6 +79,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 		void SetMovementKey3Down(bool KeyIsDown);
+
+
+	bool IsCustomMovementMode(uint8 custom_movement_mode) const;
 };
 
 class FSavedMove_My : public FSavedMove_Character
