@@ -18,6 +18,11 @@ class PARKOURFPS_API UParkourMovementComponent : public UCharacterMovementCompon
 	GENERATED_BODY()
 
 	friend class FSavedMove_My;
+
+private:
+	bool MovementKey1Down;
+	bool MovementKey2Down;
+	bool MovementKey3Down;
 	
 protected:
 	virtual void BeginPlay() override;
@@ -31,6 +36,16 @@ public:
 	virtual void OnClientCorrectionReceived(class FNetworkPredictionData_Client_Character& ClientData, float TimeStamp, FVector NewLocation, FVector NewVelocity,
 		UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode) override;
 	virtual FNetworkPredictionData_Client* GetPredictionData_Client() const override;
+
+
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	void SetMovementKey1Down(bool KeyIsDown);
+
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+		void SetMovementKey2Down(bool KeyIsDown);
+
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+		void SetMovementKey3Down(bool KeyIsDown);
 };
 
 class FSavedMove_My : public FSavedMove_Character

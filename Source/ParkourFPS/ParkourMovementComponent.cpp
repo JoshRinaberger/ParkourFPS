@@ -57,6 +57,21 @@ FNetworkPredictionData_Client* UParkourMovementComponent::GetPredictionData_Clie
 	return ClientPredictionData;
 }
 
+void UParkourMovementComponent::SetMovementKey1Down(bool KeyIsDown)
+{
+	MovementKey1Down = KeyIsDown;
+}
+
+void UParkourMovementComponent::SetMovementKey2Down(bool KeyIsDown)
+{
+	MovementKey2Down = KeyIsDown;
+}
+
+void UParkourMovementComponent::SetMovementKey3Down(bool KeyIsDown)
+{
+	MovementKey3Down = KeyIsDown;
+}
+
 void FSavedMove_My::Clear()
 {
 
