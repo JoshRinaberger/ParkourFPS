@@ -12,6 +12,12 @@
 DEFINE_LOG_CATEGORY(LogMovementCorrections);
 DEFINE_LOG_CATEGORY(LogParkourMovement);
 
+UParkourMovementComponent::UParkourMovementComponent(const FObjectInitializer& ObjectInitializer)
+	:Super(ObjectInitializer)
+{
+
+}
+
 void UParkourMovementComponent::BeginPlay()
 {
 	Super::BeginPlay();
@@ -41,11 +47,13 @@ void UParkourMovementComponent::TickComponent(float DeltaTime, enum ELevelTick T
 	{
 		WantsToWallRun = MovementKey1Down;
 	}
+
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }
 
 void UParkourMovementComponent::UpdateFromCompressedFlags(uint8 Flags)
 {
-
+	Super::UpdateFromCompressedFlags(Flags);
 }
 
 void UParkourMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSeconds)
@@ -60,6 +68,8 @@ void UParkourMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSe
 
 void UParkourMovementComponent::OnActorHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit)
 {
+	UE_LOG(LogTemp, Warning, TEXT("HIT ANOTHER ACTOR"));
+
 	// return if a custom move is already being performed
 	if (MovementMode == EMovementMode::MOVE_Custom)
 	{
@@ -353,18 +363,33 @@ int UParkourMovementComponent::FindWallRunSide(const FVector& surface_normal)
 
 bool UParkourMovementComponent::BeginWallRun()
 {
-	return true;
+	UE_LOG(LogParkourMovement, Display, TEXT("BEGIN WALLRUN %i"), GetPawnOwner()->GetLocalRole());
+
+	if (WantsToWallRun == true && !IsCustomMovementMode(ECustomMovementMode::CMOVE_WallRunning))
+	{
+		IsWallRunning = true;
+
+		return true;
+	}
+
+	return false;
 }
 
 void UParkourMovementComponent::EndWallRun()
 {
+	UE_LOG(LogTemp, Display, TEXT("WALL RUN END %i"), GetPawnOwner()->GetLocalRole());
 
+	SetMovementMode(EMovementMode::MOVE_Falling);
+
+	IsWallRunning = false;
+	IsWallRunningL = false;
+	IsWallRunningR = false;
 }
 
 void UParkourMovementComponent::OnClientCorrectionReceived(class FNetworkPredictionData_Client_Character& ClientData, float TimeStamp, FVector NewLocation, FVector NewVelocity,
 	UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode) 
 {
-
+	Super::OnClientCorrectionReceived(ClientData, TimeStamp, NewLocation, NewVelocity, NewBase, NewBaseBoneName, bHasBase, bBaseRelativePosition, ServerMovementMode);
 }
 
 FNetworkPredictionData_Client* UParkourMovementComponent::GetPredictionData_Client() const
@@ -381,7 +406,7 @@ FNetworkPredictionData_Client* UParkourMovementComponent::GetPredictionData_Clie
 
 void UParkourMovementComponent::PhysCustom(float deltaTime, int32 Iterations)
 {
-
+	Super::PhysCustom(deltaTime, Iterations);
 }
 
 void UParkourMovementComponent::PhysWallRun(float deltaTime, int32 Iterations)
@@ -411,7 +436,7 @@ bool UParkourMovementComponent::IsCustomMovementMode(uint8 custom_movement_mode)
 
 void FSavedMove_My::Clear()
 {
-
+	Super::Clear();
 }
 
 uint8 FSavedMove_My::GetCompressedFlags() const
@@ -435,12 +460,12 @@ bool FSavedMove_My::CanCombineWith(const FSavedMovePtr& NewMovePtr, ACharacter* 
 
 void FSavedMove_My::SetMoveFor(ACharacter* Character, float InDeltaTime, FVector const& NewAccel, class FNetworkPredictionData_Client_Character& ClientData)
 {
-
+	Super::SetMoveFor(Character, InDeltaTime, NewAccel, ClientData);
 }
 
 void FSavedMove_My::PrepMoveFor(class ACharacter* Character)
 {
-
+	Super::PrepMoveFor(Character);
 }
 
 FNetworkPredictionData_Client_My::FNetworkPredictionData_Client_My(const UCharacterMovementComponent& ClientMovement)

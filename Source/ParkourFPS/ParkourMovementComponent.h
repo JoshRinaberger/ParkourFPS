@@ -16,7 +16,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogParkourMovement, Log, All);
 UCLASS()
 class PARKOURFPS_API UParkourMovementComponent : public UCharacterMovementComponent
 {
-	GENERATED_BODY()
+	GENERATED_UCLASS_BODY()
 
 	friend class FSavedMove_My;
 
@@ -28,8 +28,8 @@ private:
 	// user for ???
 	bool MovementKey3Down = false;
 
-	uint8 WantsToWallRun;
-	uint8 WantsToSlide;
+	uint8 WantsToWallRun : 1;
+	uint8 WantsToSlide : 1;
 
 	bool IsWallRunning = false;
 	bool IsWallRunningL = false;

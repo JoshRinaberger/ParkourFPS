@@ -13,7 +13,8 @@
 //////////////////////////////////////////////////////////////////////////
 // AParkourFPSCharacter
 
-AParkourFPSCharacter::AParkourFPSCharacter()
+AParkourFPSCharacter::AParkourFPSCharacter(const FObjectInitializer& ObjectInitializer)
+	:Super(ObjectInitializer.SetDefaultSubobjectClass<UParkourMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
