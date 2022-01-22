@@ -35,6 +35,13 @@ private:
 	bool IsWallRunningL = false;
 	bool IsWallRunningR = false;
 
+	float WallRunTargetGravity = .25;
+	float WallRunStartSpeed = 10.0;
+	float WallRunSpeed = 850;
+	float WallRunJumpHeight = 400.0;
+	float WallRunJumpOffForce = 400.0;
+	float WallRunDirection = 0.0;
+	FVector WallRunDirectionVector;
 	FVector WallRunNormal;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Custom Character Movement|Wall Running", Meta = (AllowPrivateAccess = "true"))

@@ -133,7 +133,52 @@ bool UParkourMovementComponent::CheckWallRunFloor()
 
 bool UParkourMovementComponent::CheckWallRunTraces()
 {
-	return true;
+	FVector TraceStart = CharacterOwner->GetActorLocation();
+	FCollisionQueryParams TraceParams;
+	TraceParams.AddIgnoredActor(CharacterOwner);
+
+	// Line trace to the left of the character
+	FHitResult HitL;
+	FVector TraceEnd = GetWallRunEndVectorL();
+	GetWorld()->LineTraceSingleByChannel(HitL, TraceStart, TraceEnd, ECC_Visibility, TraceParams);
+
+	// If the trace hits another actor check if it is valid
+	if (HitL.bBlockingHit)
+	{
+		if (IsValidWallRunVector(HitL.Normal, false))
+		{
+			WallRunDirection = 1.0;
+
+			UE_LOG(LogParkourMovement, Warning, TEXT("CHECK PASSED L"));
+
+			return true;
+		}
+	}
+
+	UE_LOG(LogParkourMovement, Warning, TEXT("HIT L FAILED"));
+
+	// Line trace to the right of the character
+	FHitResult HitR;
+	TraceEnd = GetWallRunEndVectorR();
+	GetWorld()->LineTraceSingleByChannel(HitL, TraceStart, TraceEnd, ECC_Visibility, TraceParams);
+
+	// If the trace hits another actor check if it is valid
+	if (HitL.bBlockingHit)
+	{
+		if (IsValidWallRunVector(HitL.Normal, false))
+		{
+			WallRunDirection = -1.0;
+
+			UE_LOG(LogParkourMovement, Warning, TEXT("CHECK PASSED R"));
+
+			return true;
+		}
+	}
+
+	UE_LOG(LogParkourMovement, Warning, TEXT("HIT R FAILED"));
+	UE_LOG(LogParkourMovement, Warning, TEXT("CHECK FAILED TRACE"));
+
+	return false;
 }
 
 FVector UParkourMovementComponent::GetWallRunEndVectorL()
