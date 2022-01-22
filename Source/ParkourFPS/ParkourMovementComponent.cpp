@@ -228,17 +228,127 @@ FVector UParkourMovementComponent::PlayerToWallVector()
 
 bool UParkourMovementComponent::IsNextToWall(float vertical_tolerance)
 {
+	// Do a line trace from the player into the wall to make sure we're stil along the side of a wall
+	FVector crossVector = IsWallRunningL ? FVector(0.0f, 0.0f, -1.0f) : FVector(0.0f, 0.0f, 1.0f);
+	FVector traceStart = GetPawnOwner()->GetActorLocation() + (WallRunDirectionVector * 20.0f);
+	FVector traceEnd = traceStart + (FVector::CrossProduct(WallRunDirectionVector, crossVector) * 100);
+	FHitResult hitResult;
+
+	UE_LOG(LogParkourMovement, Warning, TEXT("CROSS VECTOR: %s"), *crossVector.ToString());
+	UE_LOG(LogParkourMovement, Warning, TEXT("WALL RUN DIRECTION VECTOR: %s"), *WallRunDirectionVector.ToString());
+	UE_LOG(LogParkourMovement, Warning, TEXT("Trace Start: %s,    Trace End: %s"), *traceStart.ToString(), *traceEnd.ToString());
+
+	// Required parameters for line traces
+	FCollisionQueryParams TraceParams;
+	TraceParams.AddIgnoredActor(CharacterOwner);
+	TraceParams.AddIgnoredActor(GetPawnOwner());
+
+	// Create a helper lambda for performing the line trace
+	auto lineTrace = [&](const FVector& start, const FVector& end)
+	{
+		return (GetWorld()->LineTraceSingleByChannel(hitResult, start, end, ECollisionChannel::ECC_Visibility, TraceParams));
+	};
+
+	// If a vertical tolerance was provided we want to do two line traces - one above and one below the calculated line
+	if (vertical_tolerance > FLT_EPSILON)
+	{
+		// If both line traces miss the wall then return false, we're not next to a wall
+		if (lineTrace(FVector(traceStart.X, traceStart.Y, traceStart.Z + vertical_tolerance / 2.0f), FVector(traceEnd.X, traceEnd.Y, traceEnd.Z + vertical_tolerance / 2.0f)) == false &&
+			lineTrace(FVector(traceStart.X, traceStart.Y, traceStart.Z - vertical_tolerance / 2.0f), FVector(traceEnd.X, traceEnd.Y, traceEnd.Z - vertical_tolerance / 2.0f)) == false)
+		{
+			UE_LOG(LogParkourMovement, Warning, TEXT("NEXT TO WALL FAILED MULT TRACE"));
+
+			return false;
+		}
+	}
+	// If no vertical tolerance was provided we just want to do one line trace using the caclulated line
+	else
+	{
+		// return false if the line trace misses the wall
+		if (lineTrace(traceStart, traceEnd) == false)
+		{
+			UE_LOG(LogParkourMovement, Warning, TEXT("NEXT TO WALL FAILED SINGLE TRACE"));
+
+			return false;
+		}
+	}
+
+	UE_LOG(LogParkourMovement, Warning, TEXT("WALL DISTANCE %f"), hitResult.Distance);
+
+	if (hitResult.bBlockingHit)
+		UE_LOG(LogParkourMovement, Warning, TEXT("WALL HIT"));
+
+	UE_LOG(LogParkourMovement, Warning, TEXT("WALL NAME %s"), *hitResult.GetComponent()->GetName());
+
+	UE_LOG(LogParkourMovement, Warning, TEXT("WR NORMAL %s"), *hitResult.Normal.ToString());
+
+	if (CheckWallRunTraces() == false)
+	{
+		return false;
+	}
+
+
+
+	// Make sure we're still on the side of the wall we expect to be on
+	int newWallRunSide = FindWallRunSide(hitResult.ImpactNormal);
+	if (newWallRunSide == 0 && !IsWallRunningL)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("NEXT TO WALL FAILED LEFT"));
+
+		return false;
+	}
+	else if (newWallRunSide == 1 && !IsWallRunningR)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("NEXT TO WALL FAILED RIGHT"));
+
+		return false;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("NEXT TO WALL PASSED %i"), newWallRunSide);
+
 	return true;
 }
 
 bool UParkourMovementComponent::CanSurfaceBeWallRan(const FVector& surface_normal) const
 {
-	return true;
+	// Return false if the surface normal is facing down
+	if (surface_normal.Z < -0.05f)
+		return false;
+
+	FVector normalNoZ = FVector(surface_normal.X, surface_normal.Y, 0.0f);
+	normalNoZ.Normalize();
+
+	// Find the angle of the wall
+	float wallAngle = FMath::Acos(FVector::DotProduct(normalNoZ, surface_normal));
+
+	// Return true if the wall angle is less than the walkable floor angle
+	return wallAngle < GetWalkableFloorAngle();
 }
 
 int UParkourMovementComponent::FindWallRunSide(const FVector& surface_normal)
 {
-	return 0;
+	// returns 1 if the wall is to the right, 0 if the wall is to the left
+
+	FVector crossVector;
+
+	if (FVector2D::DotProduct(FVector2D(surface_normal), FVector2D(GetPawnOwner()->GetActorRightVector())) > 0.0)
+	{
+		crossVector = FVector(0.0f, 0.0f, 1.0f);
+		WallRunDirectionVector = FVector::CrossProduct(surface_normal, crossVector);
+
+		IsWallRunningL = false;
+		IsWallRunningR = true;
+		return 1;
+	}
+	else
+	{
+		crossVector = FVector(0.0f, 0.0f, -1.0f);
+		WallRunDirectionVector = FVector::CrossProduct(surface_normal, crossVector);
+
+		IsWallRunningL = true;
+		IsWallRunningR = false;
+		return 0;
+	}
 }
 
 bool UParkourMovementComponent::BeginWallRun()
