@@ -68,8 +68,6 @@ void UParkourMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSe
 
 void UParkourMovementComponent::OnActorHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit)
 {
-	UE_LOG(LogTemp, Warning, TEXT("HIT ANOTHER ACTOR"));
-
 	// return if a custom move is already being performed
 	if (MovementMode == EMovementMode::MOVE_Custom)
 	{
@@ -406,11 +404,97 @@ FNetworkPredictionData_Client* UParkourMovementComponent::GetPredictionData_Clie
 
 void UParkourMovementComponent::PhysCustom(float deltaTime, int32 Iterations)
 {
+	// Phys* functions should only run for characters with ROLE_Authority or ROLE_AutonomousProxy. However, Unreal calls PhysCustom in
+	// two seperate locations, one of which doesn't check the role, so we must check it here to prevent this code from running on simulated proxies.
+	if (GetOwner()->GetLocalRole() == ROLE_SimulatedProxy)
+		return;
+
+	switch (CustomMovementMode)
+	{
+	case ECustomMovementMode::CMOVE_WallRunning:
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Phys Wall Run %i"), GetPawnOwner()->GetLocalRole());
+
+		PhysWallRun(deltaTime, Iterations);
+
+		break;
+	}
+	}
+
 	Super::PhysCustom(deltaTime, Iterations);
 }
 
 void UParkourMovementComponent::PhysWallRun(float deltaTime, int32 Iterations)
 {
+	// End the wall run if the player is no longer holding down the wall running key
+	if (WantsToWallRun == false)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RETURN PHYS %i"), GetPawnOwner()->GetLocalRole());
+		EndWallRun();
+		return;
+	}
+
+	// End the wall run if the player is no long on a wall
+	if (IsNextToWall(WallRunLineTraceVerticalTolerance) == false)
+	{
+		EndWallRun();
+		return;
+	}
+
+	// End the wall run if the player has hit the floor
+	if (CheckWallRunFloor() == false)
+	{
+		EndWallRun();
+		return;
+	}
+
+	// required parameters for line traces
+	FVector TraceStart = CharacterOwner->GetActorLocation();
+	FVector TraceEnd = GetWallRunEndVectorL();
+	FHitResult HitL;
+	FHitResult HitR;
+	FCollisionQueryParams TraceParams;
+	TraceParams.AddIgnoredActor(CharacterOwner);
+
+	GetWorld()->LineTraceSingleByChannel(HitL, TraceStart, TraceEnd, ECC_Visibility, TraceParams);
+
+	// Set the wall run direction based whether a wall is found on the left or the right side of the character
+	if (HitL.bBlockingHit)
+	{
+		if (IsValidWallRunVector(HitL.Normal, true))
+		{
+			WallRunDirection = 1.0;
+		}
+	}
+	else
+	{
+		TraceEnd = GetWallRunEndVectorR();
+
+		GetWorld()->LineTraceSingleByChannel(HitL, TraceStart, TraceEnd, ECC_Visibility, TraceParams);
+
+		if (HitL.bBlockingHit)
+		{
+			if (IsValidWallRunVector(HitL.Normal, true))
+			{
+				WallRunDirection = -1.0;
+			}
+		}
+	}
+
+	// Add forward force
+	FVector CrossVector = FVector(0.0, 0.0, 1.0);
+	FVector ForwardForce = FVector::CrossProduct(WallRunNormal, CrossVector);
+	ForwardForce *= WallRunSpeed * WallRunDirection;
+
+	// Set velocity using the forward force
+	Velocity.X = ForwardForce.X;
+	Velocity.Y = ForwardForce.Y;
+	Velocity.Z = 0.0;
+
+	// Apply the velocity to the character taking into account delta time to make the movement independent of frame rate
+	const FVector AdjustedVelocity = Velocity * deltaTime;
+	FHitResult Hit(1.f);
+	SafeMoveUpdatedComponent(AdjustedVelocity, UpdatedComponent->GetComponentQuat(), true, Hit);
 
 }
 
