@@ -76,6 +76,37 @@ void UParkourMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSe
 	Super::UpdateCharacterStateBeforeMovement(DeltaSeconds);
 }
 
+void UParkourMovementComponent::OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode)
+{
+	if (PreviousMovementMode != MovementMode || PreviousCustomMode != CustomMovementMode)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Movement Mode Changed To:  %i %s"), MovementMode, *CharacterOwner->GetName());
+
+		if (MovementMode == EMovementMode::MOVE_Custom)
+			UE_LOG(LogTemp, Warning, TEXT("Custom Movement Mode Changed To: %i %s"), CustomMovementMode, *CharacterOwner->GetName());
+	}
+
+	if (MovementMode == MOVE_Custom)
+	{
+		switch (CustomMovementMode)
+		{
+		case ECustomMovementMode::CMOVE_WallRunning:
+		{
+			if (Velocity.Z > 0.f)
+			{
+				Velocity.Z = 200;
+			}
+			else
+			{
+				Velocity.Z = Velocity.Z / 5;
+			}
+
+			break;
+		}
+		}
+	}
+}
+
 void UParkourMovementComponent::OnActorHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit)
 {
 	// return if a custom move is already being performed
@@ -496,10 +527,12 @@ void UParkourMovementComponent::PhysWallRun(float deltaTime, int32 Iterations)
 	FVector ForwardForce = FVector::CrossProduct(WallRunNormal, CrossVector);
 	ForwardForce *= WallRunSpeed * WallRunDirection;
 
-	// Set velocity using the forward force
+	const FVector Gravity(0.f, 0.f, WallRunGravity);
+
+	// Set velocity using the forward force and gravity
 	Velocity.X = ForwardForce.X;
 	Velocity.Y = ForwardForce.Y;
-	Velocity.Z = 0.0;
+	Velocity = NewFallVelocity(Velocity, Gravity, deltaTime);
 
 	// Apply the velocity to the character taking into account delta time to make the movement independent of frame rate
 	const FVector AdjustedVelocity = Velocity * deltaTime;
