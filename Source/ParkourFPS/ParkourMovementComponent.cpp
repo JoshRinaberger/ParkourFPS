@@ -534,6 +534,16 @@ uint8 FSavedMove_My::GetCompressedFlags() const
 	FLAG_Custom_3		= 0x80, // ???
 	*/
 
+	// Write to the compressed flags
+	if (SavedMove1)
+		Result |= FLAG_Custom_0;
+	if (SavedMove2)
+		Result |= FLAG_Custom_1;
+	if (SavedMove3)
+		Result |= FLAG_Custom_2;
+	if (SavedMove4)
+		Result |= FLAG_Custom_3;
+
 	return Result;
 }
 
@@ -545,11 +555,29 @@ bool FSavedMove_My::CanCombineWith(const FSavedMovePtr& NewMovePtr, ACharacter* 
 void FSavedMove_My::SetMoveFor(ACharacter* Character, float InDeltaTime, FVector const& NewAccel, class FNetworkPredictionData_Client_Character& ClientData)
 {
 	Super::SetMoveFor(Character, InDeltaTime, NewAccel, ClientData);
+
+	UParkourMovementComponent* charMove = static_cast<UParkourMovementComponent*>(Character->GetCharacterMovement());
+
+	if (charMove)
+	{
+		// Copy values into the saved move
+		SavedMove1 = charMove->WantsToWallRun;
+		SavedMove2 = charMove->WantsToWallRun;
+	}
 }
 
 void FSavedMove_My::PrepMoveFor(class ACharacter* Character)
 {
 	Super::PrepMoveFor(Character);
+
+	UParkourMovementComponent* charMove = static_cast<UParkourMovementComponent*>(Character->GetCharacterMovement());
+
+	if (charMove)
+	{
+		// Copy values out of the saved move
+		charMove->WantsToWallRun = SavedMove1;
+		charMove->WantsToSlide = SavedMove2;
+	}
 }
 
 FNetworkPredictionData_Client_My::FNetworkPredictionData_Client_My(const UCharacterMovementComponent& ClientMovement)
