@@ -54,6 +54,16 @@ void UParkourMovementComponent::TickComponent(float DeltaTime, enum ELevelTick T
 void UParkourMovementComponent::UpdateFromCompressedFlags(uint8 Flags)
 {
 	Super::UpdateFromCompressedFlags(Flags);
+
+	/*  There are 4 custom move flags for us to use. Below is what each is currently being used for:
+		FLAG_Custom_0		= 0x10, // Wall Run
+		FLAG_Custom_1		= 0x20, // ???
+		FLAG_Custom_2		= 0x40, // ???
+		FLAG_Custom_3		= 0x80, // ???
+	*/
+
+	// Read the values from the compressed flags
+	WantsToWallRun = (Flags & FSavedMove_Character::FLAG_Custom_0) != 0;
 }
 
 void UParkourMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSeconds)
@@ -521,6 +531,12 @@ bool UParkourMovementComponent::IsCustomMovementMode(uint8 custom_movement_mode)
 void FSavedMove_My::Clear()
 {
 	Super::Clear();
+
+	// Clear all values
+	SavedMove1 = 0;
+	SavedMove2 = 0;
+	SavedMove3 = 0;
+	SavedMove4 = 0;
 }
 
 uint8 FSavedMove_My::GetCompressedFlags() const
