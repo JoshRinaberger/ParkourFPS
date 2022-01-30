@@ -80,10 +80,10 @@ void UParkourMovementComponent::OnMovementModeChanged(EMovementMode PreviousMove
 {
 	if (PreviousMovementMode != MovementMode || PreviousCustomMode != CustomMovementMode)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Movement Mode Changed To:  %i %s"), MovementMode, *CharacterOwner->GetName());
+		UE_LOG(LogParkourMovement, Warning, TEXT("Movement Mode Changed To:  %i %s"), MovementMode, *CharacterOwner->GetName());
 
 		if (MovementMode == EMovementMode::MOVE_Custom)
-			UE_LOG(LogTemp, Warning, TEXT("Custom Movement Mode Changed To: %i %s"), CustomMovementMode, *CharacterOwner->GetName());
+			UE_LOG(LogParkourMovement, Warning, TEXT("Custom Movement Mode Changed To: %i %s"), CustomMovementMode, *CharacterOwner->GetName());
 	}
 
 	if (MovementMode == MOVE_Custom)
@@ -94,7 +94,7 @@ void UParkourMovementComponent::OnMovementModeChanged(EMovementMode PreviousMove
 		{
 			if (Velocity.Z > 0.f)
 			{
-				Velocity.Z = 200;
+				Velocity.Z = 300;
 			}
 			else
 			{
@@ -105,6 +105,8 @@ void UParkourMovementComponent::OnMovementModeChanged(EMovementMode PreviousMove
 		}
 		}
 	}
+
+	Super::OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
 }
 
 void UParkourMovementComponent::OnActorHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit)
