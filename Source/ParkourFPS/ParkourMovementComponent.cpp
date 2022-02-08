@@ -49,7 +49,7 @@ void UParkourMovementComponent::TickComponent(float DeltaTime, enum ELevelTick T
 
 		if (MovementKey2Down)
 		{
-			WantsToSlide = CheckCanSlide();
+			WantsToSlide = (CheckCanSlide());
 		}
 	}
 
@@ -76,6 +76,11 @@ void UParkourMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSe
 	if (WantsToWallRun && IsWallRunning && !IsCustomMovementMode(ECustomMovementMode::CMOVE_WallRunning))
 	{
 		SetMovementMode(EMovementMode::MOVE_Custom, ECustomMovementMode::CMOVE_WallRunning);
+	}
+
+	if (WantsToSlide && !IsCrouched)
+	{
+		BeginSlide();
 	}
 
 	Super::UpdateCharacterStateBeforeMovement(DeltaSeconds);
@@ -489,18 +494,26 @@ bool UParkourMovementComponent::CheckCanSlide()
 
 		if (!IsWalkingForward())
 		{
+			UE_LOG(LogParkourMovement, Warning, TEXT("Slide Check Failed: Not Walking Forward"));
+
 			return false;
 		}
 
 		if (MovementMode != EMovementMode::MOVE_Walking)
 		{
+			UE_LOG(LogParkourMovement, Warning, TEXT("Slide Check Failed: Movement Mode Not Walking"));
+
 			return false;
 		}
+
+		UE_LOG(LogParkourMovement, Warning, TEXT("Slide Check Passed"));
 
 		return true;
 	}
 
 	return false;
+
+	UE_LOG(LogParkourMovement, Warning, TEXT("Slide Check Failed: Too Low Local Role"));
 }
 
 bool UParkourMovementComponent::CanStandUp()
@@ -515,7 +528,15 @@ bool UParkourMovementComponent::CanStandUpLineTrace(FVector CharacterFeetLocatio
 
 void UParkourMovementComponent::BeginSlide()
 {
+	UE_LOG(LogParkourMovement, Warning, TEXT("BEGIN SLIDE"));
 
+	if (WantsToSlide == true && !IsCustomMovementMode(ECustomMovementMode::CMOVE_Sliding))
+	{
+		SetMovementMode(EMovementMode::MOVE_Custom, ECustomMovementMode::CMOVE_Sliding);
+	}
+
+	IsCrouched = true;
+	IsSliding = true;
 }
 
 void UParkourMovementComponent::EndSlide()
