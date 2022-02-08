@@ -132,6 +132,8 @@ void UParkourMovementComponent::OnActorHit(AActor* SelfActor, AActor* OtherActor
 	}
 }
 
+#pragma region Wall Run Functions
+
 bool UParkourMovementComponent::CheckCanWallRun(const FHitResult Hit)
 {
 	// No need to check further if the character is already wallrunning
@@ -455,6 +457,42 @@ void UParkourMovementComponent::WallRunJump()
 	}
 }
 
+#pragma endregion
+
+#pragma region Slide and Crouch Functions
+
+bool UParkourMovementComponent::CheckCanSlide()
+{
+	return true;
+}
+
+bool UParkourMovementComponent::CanStandUp()
+{
+	return true;
+}
+
+bool UParkourMovementComponent::CanStandUpLineTrace(FVector CharacterFeetLocation, FVector CharacterHeadLocation)
+{
+	return true;
+}
+
+void UParkourMovementComponent::BeginSlide()
+{
+
+}
+
+void UParkourMovementComponent::EndSlide()
+{
+
+}
+
+void UParkourMovementComponent::EndCrouch()
+{
+
+}
+
+#pragma endregion
+
 void UParkourMovementComponent::OnClientCorrectionReceived(class FNetworkPredictionData_Client_Character& ClientData, float TimeStamp, FVector NewLocation, FVector NewVelocity,
 	UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode) 
 {
@@ -487,6 +525,14 @@ void UParkourMovementComponent::PhysCustom(float deltaTime, int32 Iterations)
 		UE_LOG(LogParkourMovement, Warning, TEXT("Phys Wall Run %i"), GetPawnOwner()->GetLocalRole());
 
 		PhysWallRun(deltaTime, Iterations);
+
+		break;
+	}
+	case ECustomMovementMode::CMOVE_Sliding:
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Phys Sliding %i"), GetPawnOwner()->GetLocalRole());
+
+		PhysSlide(deltaTime, Iterations);
 
 		break;
 	}
@@ -568,6 +614,11 @@ void UParkourMovementComponent::PhysWallRun(float deltaTime, int32 Iterations)
 	const FVector AdjustedVelocity = Velocity * deltaTime;
 	FHitResult Hit(1.f);
 	SafeMoveUpdatedComponent(AdjustedVelocity, UpdatedComponent->GetComponentQuat(), true, Hit);
+
+}
+
+void UParkourMovementComponent::PhysSlide(float deltaTime, int32 Iterations)
+{
 
 }
 

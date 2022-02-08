@@ -32,6 +32,8 @@ private:
 	uint8 WantsToSlide : 1;
 	uint8 WantsToCustomJump : 1;
 
+	// ========================= WALL RUNNING VARIABLES =======================================
+
 	bool IsWallRunning = false;
 	bool IsWallRunningL = false;
 	bool IsWallRunningR = false;
@@ -57,11 +59,22 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Custom Character Movement|Wall Running", Meta = (AllowPrivateAccess = "true"))
 	float WallRunLineTraceVerticalTolerance = 50.0f;
+
+	// ========================= SLIDING VARIABLES =======================================
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Sliding", Meta = (AllowPrivateAccess = "true"))
+	float SlideTerminalSpeed = 1200.f;
+
+	bool IsSliding = false;
+	bool IsCrouched = false;
+	
 	
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 
+
+	// Wall Running Functions
 	bool CheckCanWallRun(const FHitResult Hit);
 	bool CheckWallRunFloor();
 	bool CheckWallRunTraces();
@@ -79,6 +92,18 @@ protected:
 
 	UFUNCTION()
 	void OnActorHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit);
+
+	// Sliding Functions
+	bool CheckCanSlide();
+
+	bool CanStandUp();
+	bool CanStandUpLineTrace(FVector CharacterFeetLocation, FVector CharacterHeadLocation);
+
+	void BeginSlide();
+	void EndSlide();
+	void EndCrouch();
+
+	void PhysSlide(float deltaTime, int32 Iterations);
 
 public:
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
