@@ -65,13 +65,14 @@ void UParkourMovementComponent::UpdateFromCompressedFlags(uint8 Flags)
 
 	/*  There are 4 custom move flags for us to use. Below is what each is currently being used for:
 		FLAG_Custom_0		= 0x10, // Wall Run
-		FLAG_Custom_1		= 0x20, // ???
+		FLAG_Custom_1		= 0x20, // Slide
 		FLAG_Custom_2		= 0x40, // ???
 		FLAG_Custom_3		= 0x80, // ???
 	*/
 
 	// Read the values from the compressed flags
 	WantsToWallRun = (Flags & FSavedMove_Character::FLAG_Custom_0) != 0;
+	WantsToSlide = (Flags & FSavedMove_Character::FLAG_Custom_1) != 0;
 }
 
 void UParkourMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSeconds)
@@ -844,7 +845,7 @@ void FSavedMove_My::SetMoveFor(ACharacter* Character, float InDeltaTime, FVector
 	{
 		// Copy values into the saved move
 		SavedMove1 = charMove->WantsToWallRun;
-		SavedMove2 = charMove->WantsToWallRun;
+		SavedMove2 = charMove->WantsToSlide;
 
 		SavedWantsToCustomJump = charMove->WantsToCustomJump;
 	}
