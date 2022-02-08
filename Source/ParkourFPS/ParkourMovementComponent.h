@@ -73,6 +73,7 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 
+	bool IsWalkingForward();
 
 	// Wall Running Functions
 	bool CheckCanWallRun(const FHitResult Hit);

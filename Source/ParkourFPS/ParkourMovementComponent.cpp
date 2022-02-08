@@ -46,6 +46,11 @@ void UParkourMovementComponent::TickComponent(float DeltaTime, enum ELevelTick T
 	if (GetPawnOwner()->IsLocallyControlled())
 	{
 		WantsToWallRun = MovementKey1Down;
+
+		if (MovementKey2Down)
+		{
+			WantsToSlide = CheckCanSlide();
+		}
 	}
 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
@@ -130,6 +135,18 @@ void UParkourMovementComponent::OnActorHit(AActor* SelfActor, AActor* OtherActor
 	{
 		return;
 	}
+}
+
+bool UParkourMovementComponent::IsWalkingForward()
+{
+	FVector velocity2D = GetPawnOwner()->GetVelocity();
+	FVector forward2D = GetPawnOwner()->GetActorForwardVector();
+	velocity2D.Z = 0.0f;
+	forward2D.Z = 0.0f;
+	velocity2D.Normalize();
+	forward2D.Normalize();
+
+	return FVector::DotProduct(velocity2D, forward2D) > 0.5f;
 }
 
 #pragma region Wall Run Functions
@@ -463,7 +480,27 @@ void UParkourMovementComponent::WallRunJump()
 
 bool UParkourMovementComponent::CheckCanSlide()
 {
-	return true;
+	if (GetPawnOwner()->GetLocalRole() > ROLE_SimulatedProxy)
+	{
+		if (CustomMovementMode == ECustomMovementMode::CMOVE_Sliding && MovementMode == EMovementMode::MOVE_Custom)
+		{
+			return true;
+		}
+
+		if (!IsWalkingForward())
+		{
+			return false;
+		}
+
+		if (MovementMode != EMovementMode::MOVE_Walking)
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	return false;
 }
 
 bool UParkourMovementComponent::CanStandUp()
