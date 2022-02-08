@@ -65,6 +65,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Sliding", Meta = (AllowPrivateAccess = "true"))
 	float SlideTerminalSpeed = 1200.f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Sliding", Meta = (AllowPrivateAccess = "true"))
+	float CrouchSpeed = 300.f;
+
 	bool IsSliding = false;
 	bool IsCrouched = false;
 	
@@ -103,6 +106,8 @@ protected:
 	void BeginSlide();
 	void EndSlide();
 	void EndCrouch();
+
+	FVector CalculateFloorInfluence(FVector FloorNormal);
 
 	void PhysSlide(float deltaTime, int32 Iterations);
 

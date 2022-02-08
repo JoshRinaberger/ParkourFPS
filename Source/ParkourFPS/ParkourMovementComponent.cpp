@@ -51,6 +51,9 @@ void UParkourMovementComponent::TickComponent(float DeltaTime, enum ELevelTick T
 		{
 			WantsToSlide = (CheckCanSlide());
 		}
+		else {
+			WantsToSlide = false;
+		}
 	}
 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
@@ -541,12 +544,38 @@ void UParkourMovementComponent::BeginSlide()
 
 void UParkourMovementComponent::EndSlide()
 {
+	SetMovementMode(EMovementMode::MOVE_Walking);
 
+	IsCrouched = false;
+	IsSliding = false;
 }
 
 void UParkourMovementComponent::EndCrouch()
 {
 
+}
+
+FVector UParkourMovementComponent::CalculateFloorInfluence(FVector FloorNormal)
+{
+	// floor is completely flat
+	if (FloorNormal == CharacterOwner->GetActorUpVector())
+	{
+		return FVector(0, 0, 0);
+	}
+
+	// Direction of the floor
+	FVector FloorInfluence = FVector::CrossProduct(FloorNormal, CharacterOwner->GetActorUpVector());
+	FloorInfluence = FVector::CrossProduct(FloorNormal, FloorInfluence);
+	FloorInfluence.Normalize();
+
+	//Force that the floor adds
+	float FloorForce = FVector::DotProduct(FloorNormal, CharacterOwner->GetActorUpVector());
+	FloorForce = 1.0 - FloorForce;
+	FloorForce = FMath::Clamp(FloorForce, 0.0f, 1.f) * 100000.f;
+
+	FloorInfluence = FloorInfluence * FloorForce;
+
+	return FloorInfluence;
 }
 
 #pragma endregion
@@ -677,7 +706,58 @@ void UParkourMovementComponent::PhysWallRun(float deltaTime, int32 Iterations)
 
 void UParkourMovementComponent::PhysSlide(float deltaTime, int32 Iterations)
 {
+	float CurrentSpeed = Velocity.Size();
 
+	// 
+	if (CurrentSpeed < CrouchSpeed || !WantsToSlide)
+	{
+		EndSlide();
+
+		return;
+	}
+
+
+	FHitResult FloorHitResult;
+	FVector TraceStart = CharacterOwner->GetActorLocation();
+	FVector TraceEnd = TraceStart;
+	TraceEnd.Z -= 200;
+
+	FCollisionQueryParams TraceParams;
+	TraceParams.AddIgnoredActor(CharacterOwner);
+	TraceParams.AddIgnoredActor(GetPawnOwner());
+
+	GetWorld()->LineTraceSingleByChannel(FloorHitResult, TraceStart, TraceEnd, ECC_Visibility, TraceParams);
+
+	if (!FloorHitResult.bBlockingHit)
+	{
+		EndSlide();
+	}
+
+
+	FVector FloorInfluenceForce = CalculateFloorInfluence(FloorHitResult.ImpactNormal);
+
+	Velocity += FloorInfluenceForce;
+
+	if (FloorInfluenceForce.Z == 0.0)
+	{
+		Velocity.Z = 0.0;
+	}
+
+
+	CurrentSpeed = Velocity.Size();
+
+	if (CurrentSpeed > SlideTerminalSpeed)
+	{
+		Velocity.Normalize();
+		Velocity *= SlideTerminalSpeed;
+	}
+
+
+	CalcVelocity(deltaTime, 0.0, true, 1000.0);
+
+	const FVector AdjustedVelocity = Velocity * deltaTime;
+	FHitResult Hit(1.f);
+	SafeMoveUpdatedComponent(AdjustedVelocity, UpdatedComponent->GetComponentQuat(), true, Hit);
 }
 
 void UParkourMovementComponent::SetMovementKey1Down(bool KeyIsDown)
