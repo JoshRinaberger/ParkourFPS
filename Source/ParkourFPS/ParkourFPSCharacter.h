@@ -35,6 +35,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	UParkourMovementComponent* GetParkourMovementComponent() const;
 
+	virtual void Jump() override;
+	virtual void StopJumping() override;
+
 protected:
 
 	/** Resets HMD orientation in VR. */

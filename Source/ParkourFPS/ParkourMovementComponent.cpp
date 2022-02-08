@@ -109,6 +109,13 @@ void UParkourMovementComponent::OnMovementModeChanged(EMovementMode PreviousMove
 	Super::OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
 }
 
+void UParkourMovementComponent::OnMovementUpdated(float DeltaSeconds, const FVector& OldLocation, const FVector& OldVelocity)
+{
+	Super::OnMovementUpdated(DeltaSeconds, OldLocation, OldVelocity);
+
+	WallRunJump();
+}
+
 void UParkourMovementComponent::OnActorHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit)
 {
 	// return if a custom move is already being performed
@@ -427,6 +434,27 @@ void UParkourMovementComponent::EndWallRun()
 	IsWallRunningR = false;
 }
 
+void UParkourMovementComponent::WallRunJump()
+{
+	if (!IsWallRunning)
+	{
+		return;
+	}
+
+	if (WantsToCustomJump)
+	{
+		EndWallRun();
+
+		FVector LaunchVelocity;
+
+		LaunchVelocity.X = WallRunJumpOffForce * (CharacterOwner->GetActorForwardVector().X + WallRunNormal.X);
+		LaunchVelocity.Y = WallRunJumpOffForce * (CharacterOwner->GetActorForwardVector().Y + WallRunNormal.Y);
+		LaunchVelocity.Z = WallRunJumpHeight;
+
+		Launch(LaunchVelocity);
+	}
+}
+
 void UParkourMovementComponent::OnClientCorrectionReceived(class FNetworkPredictionData_Client_Character& ClientData, float TimeStamp, FVector NewLocation, FVector NewVelocity,
 	UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode) 
 {
@@ -558,6 +586,18 @@ void UParkourMovementComponent::SetMovementKey3Down(bool KeyIsDown)
 	MovementKey3Down = KeyIsDown;
 }
 
+void UParkourMovementComponent::SetWantsToCustomJump(bool keyIsDown)
+{
+	if (MovementMode == EMovementMode::MOVE_Custom)
+	{
+		WantsToCustomJump = keyIsDown;
+	}
+	else 
+	{
+		WantsToCustomJump = false;
+	}
+}
+
 bool UParkourMovementComponent::IsCustomMovementMode(uint8 custom_movement_mode) const
 {
 	return MovementMode == EMovementMode::MOVE_Custom && CustomMovementMode == custom_movement_mode;
@@ -572,6 +612,8 @@ void FSavedMove_My::Clear()
 	SavedMove2 = 0;
 	SavedMove3 = 0;
 	SavedMove4 = 0;
+
+	SavedWantsToCustomJump = false;
 }
 
 uint8 FSavedMove_My::GetCompressedFlags() const
@@ -614,6 +656,8 @@ void FSavedMove_My::SetMoveFor(ACharacter* Character, float InDeltaTime, FVector
 		// Copy values into the saved move
 		SavedMove1 = charMove->WantsToWallRun;
 		SavedMove2 = charMove->WantsToWallRun;
+
+		SavedWantsToCustomJump = charMove->WantsToCustomJump;
 	}
 }
 
@@ -628,6 +672,8 @@ void FSavedMove_My::PrepMoveFor(class ACharacter* Character)
 		// Copy values out of the saved move
 		charMove->WantsToWallRun = SavedMove1;
 		charMove->WantsToSlide = SavedMove2;
+
+		charMove->WantsToCustomJump = SavedWantsToCustomJump;
 	}
 }
 

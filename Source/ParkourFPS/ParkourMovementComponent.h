@@ -30,18 +30,27 @@ private:
 
 	uint8 WantsToWallRun : 1;
 	uint8 WantsToSlide : 1;
+	uint8 WantsToCustomJump : 1;
 
 	bool IsWallRunning = false;
 	bool IsWallRunningL = false;
 	bool IsWallRunningR = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement", Meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Wall Running", Meta = (AllowPrivateAccess = "true"))
 	float WallRunGravity = .25;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Wall Running", Meta = (AllowPrivateAccess = "true"))
 	float WallRunStartSpeed = 10.0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Wall Running", Meta = (AllowPrivateAccess = "true"))
 	float WallRunSpeed = 850;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Wall Running", Meta = (AllowPrivateAccess = "true"))
 	float WallRunJumpHeight = 400.0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Wall Running", Meta = (AllowPrivateAccess = "true"))
 	float WallRunJumpOffForce = 400.0;
+
 	float WallRunDirection = 0.0;
 	FVector WallRunDirectionVector;
 	FVector WallRunNormal;
@@ -66,6 +75,7 @@ protected:
 	bool IsNextToWall(float vertical_tolerance = 0.0f);
 	bool CanSurfaceBeWallRan(const FVector& surface_normal) const;
 	int FindWallRunSide(const FVector& surface_normal);
+	void WallRunJump();
 
 	UFUNCTION()
 	void OnActorHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit);
@@ -76,6 +86,7 @@ public:
 	virtual void PhysCustom(float deltaTime, int32 Iterations) override;
 	virtual void UpdateCharacterStateBeforeMovement(float DeltaSeconds) override;
 	virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) override;
+	virtual void OnMovementUpdated(float DeltaSeconds, const FVector& OldLocation, const FVector& OldVelocity) override;
 	virtual void OnClientCorrectionReceived(class FNetworkPredictionData_Client_Character& ClientData, float TimeStamp, FVector NewLocation, FVector NewVelocity,
 		UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode) override;
 	virtual FNetworkPredictionData_Client* GetPredictionData_Client() const override;
@@ -89,6 +100,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 		void SetMovementKey3Down(bool KeyIsDown);
+
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+		void SetWantsToCustomJump(bool KeyIsDown);
 
 
 	bool IsCustomMovementMode(uint8 custom_movement_mode) const;
@@ -121,6 +135,8 @@ private:
 	uint8 SavedMove2 : 1;
 	uint8 SavedMove3 : 1;
 	uint8 SavedMove4 : 1;
+
+	uint8 SavedWantsToCustomJump : 1;
 };
 
 class FNetworkPredictionData_Client_My : public FNetworkPredictionData_Client_Character

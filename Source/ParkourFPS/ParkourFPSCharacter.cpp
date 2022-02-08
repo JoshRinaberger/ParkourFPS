@@ -146,3 +146,17 @@ UParkourMovementComponent* AParkourFPSCharacter::GetParkourMovementComponent() c
 {
 	return static_cast<UParkourMovementComponent*>(GetCharacterMovement());
 }
+
+void AParkourFPSCharacter::Jump()
+{
+	Super::Jump();
+
+	GetParkourMovementComponent()->SetWantsToCustomJump(true);
+}
+
+void AParkourFPSCharacter::StopJumping()
+{
+	Super::StopJumping();
+
+	GetParkourMovementComponent()->SetWantsToCustomJump(false);
+}
