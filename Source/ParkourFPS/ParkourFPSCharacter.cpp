@@ -122,7 +122,11 @@ void AParkourFPSCharacter::MoveForward(float Value)
 
 		// get forward vector
 		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-		AddMovementInput(Direction, Value);
+
+		if (bAcceptingMovementInput)
+		{
+			AddMovementInput(Direction, Value);
+		}
 	}
 }
 
@@ -136,8 +140,12 @@ void AParkourFPSCharacter::MoveRight(float Value)
 	
 		// get right vector 
 		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
-		// add movement in that direction
-		AddMovementInput(Direction, Value);
+
+		if (bAcceptingMovementInput)
+		{
+			// add movement in that direction
+			AddMovementInput(Direction, Value);
+		}
 	}
 }
 
