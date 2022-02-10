@@ -82,7 +82,7 @@ void UParkourMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSe
 		SetMovementMode(EMovementMode::MOVE_Custom, ECustomMovementMode::CMOVE_WallRunning);
 	}
 
-	if (WantsToSlide && !IsCrouched)
+	if (WantsToSlide && !IsCrouched && !IsSliding)
 	{
 		BeginSlide();
 	}
@@ -536,7 +536,7 @@ void UParkourMovementComponent::BeginSlide()
 {
 	UE_LOG(LogParkourMovement, Warning, TEXT("BEGIN SLIDE"));
 
-	if (WantsToSlide == true && !IsCustomMovementMode(ECustomMovementMode::CMOVE_Sliding))
+	if (WantsToSlide == true && !IsSliding)
 	{
 		//SetMovementMode(EMovementMode::MOVE_Custom, ECustomMovementMode::CMOVE_Sliding);
 	}
@@ -556,6 +556,9 @@ void UParkourMovementComponent::EndSlide()
 
 	IsCrouched = false;
 	IsSliding = false;
+
+	WantsToSlide = false;
+	MovementKey2Down = false;
 
 	GroundFriction = 8.f;
 	BrakingDecelerationWalking = 2048.f;
@@ -782,6 +785,11 @@ void UParkourMovementComponent::ApplySlideForce()
 	}
 
 	float CurrentSpeed = Velocity.Size();
+
+	if (CurrentSpeed < CrouchSpeed)
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("SLIDE SPEED TO SLOW"));
+	}
 
 	if (CurrentSpeed < CrouchSpeed || !WantsToSlide)
 	{
