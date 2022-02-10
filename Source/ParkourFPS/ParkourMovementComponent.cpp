@@ -128,6 +128,8 @@ void UParkourMovementComponent::OnMovementUpdated(float DeltaSeconds, const FVec
 	Super::OnMovementUpdated(DeltaSeconds, OldLocation, OldVelocity);
 
 	WallRunJump();
+
+	ApplySlideForce();
 }
 
 void UParkourMovementComponent::OnActorHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit)
@@ -536,11 +538,16 @@ void UParkourMovementComponent::BeginSlide()
 
 	if (WantsToSlide == true && !IsCustomMovementMode(ECustomMovementMode::CMOVE_Sliding))
 	{
-		SetMovementMode(EMovementMode::MOVE_Custom, ECustomMovementMode::CMOVE_Sliding);
+		//SetMovementMode(EMovementMode::MOVE_Custom, ECustomMovementMode::CMOVE_Sliding);
 	}
 
 	IsCrouched = true;
 	IsSliding = true;
+
+	Velocity = CharacterOwner->GetActorForwardVector() * 800;
+	GroundFriction = 0.f;
+	BrakingDecelerationWalking = 1000.f;
+
 }
 
 void UParkourMovementComponent::EndSlide()
@@ -549,6 +556,9 @@ void UParkourMovementComponent::EndSlide()
 
 	IsCrouched = false;
 	IsSliding = false;
+
+	GroundFriction = 8.f;
+	BrakingDecelerationWalking = 2048.f;
 }
 
 void UParkourMovementComponent::EndCrouch()
@@ -572,7 +582,7 @@ FVector UParkourMovementComponent::CalculateFloorInfluence(FVector FloorNormal)
 	//Force that the floor adds
 	float FloorForce = FVector::DotProduct(FloorNormal, CharacterOwner->GetActorUpVector());
 	FloorForce = 1.0 - FloorForce;
-	FloorForce = FMath::Clamp(FloorForce, 0.0f, 1.f) * 100000.f;
+	FloorForce = FMath::Clamp(FloorForce, 0.0f, 1.f) * FloorInfluenceForceFactor;
 
 	FloorInfluence = FloorInfluence * FloorForce;
 
@@ -739,6 +749,9 @@ void UParkourMovementComponent::PhysSlide(float deltaTime, int32 Iterations)
 
 	Velocity += FloorInfluenceForce;
 
+	UE_LOG(LogParkourMovement, Warning, TEXT("FLOOR INFLUENCE: %s"), *FloorInfluenceForce.ToString());
+	UE_LOG(LogParkourMovement, Warning, TEXT("Velocity: %s"), *Velocity.ToString());
+
 	if (FloorInfluenceForce.Z == 0.0)
 	{
 		Velocity.Z = 0.0;
@@ -759,6 +772,48 @@ void UParkourMovementComponent::PhysSlide(float deltaTime, int32 Iterations)
 	const FVector AdjustedVelocity = Velocity * deltaTime;
 	FHitResult Hit(1.f);
 	SafeMoveUpdatedComponent(AdjustedVelocity, UpdatedComponent->GetComponentQuat(), true, Hit);
+}
+
+void UParkourMovementComponent::ApplySlideForce()
+{
+	if (!IsSliding)
+	{
+		return;
+	}
+
+	float CurrentSpeed = Velocity.Size();
+
+	if (CurrentSpeed < CrouchSpeed || !WantsToSlide)
+	{
+		EndSlide();
+
+		return;
+	}
+
+	if (CurrentSpeed > SlideTerminalSpeed)
+	{
+		Velocity.Normalize();
+		Velocity *= SlideTerminalSpeed;
+	}
+
+
+
+	FHitResult FloorHitResult;
+	FVector TraceStart = CharacterOwner->GetActorLocation();
+	FVector TraceEnd = TraceStart;
+	TraceEnd.Z -= 200;
+
+	FCollisionQueryParams TraceParams;
+	TraceParams.AddIgnoredActor(CharacterOwner);
+	TraceParams.AddIgnoredActor(GetPawnOwner());
+
+	GetWorld()->LineTraceSingleByChannel(FloorHitResult, TraceStart, TraceEnd, ECC_Visibility, TraceParams);
+
+	FVector FloorInfluenceForce = CalculateFloorInfluence(FloorHitResult.ImpactNormal);
+
+	UE_LOG(LogParkourMovement, Warning, TEXT("FLOOR INFLUENCE FORCE: %s"), *FloorInfluenceForce.ToString());
+
+	AddForce(FloorInfluenceForce);
 }
 
 void UParkourMovementComponent::SetMovementKey1Down(bool KeyIsDown)
