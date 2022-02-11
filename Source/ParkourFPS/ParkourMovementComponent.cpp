@@ -548,8 +548,10 @@ void UParkourMovementComponent::BeginSlide()
 	GroundFriction = 0.f;
 	BrakingDecelerationWalking = 1000.f;
 
-	static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->bAcceptingMovementInput = false;
-	static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->Crouch();
+	AParkourFPSCharacter* characterOwner = static_cast<AParkourFPSCharacter*>(GetCharacterOwner());
+	characterOwner->bAcceptingMovementInput = false;
+	characterOwner->Crouch();
+	characterOwner->PlaySlideStartMontage();
 }
 
 void UParkourMovementComponent::EndSlide()
@@ -565,8 +567,10 @@ void UParkourMovementComponent::EndSlide()
 	GroundFriction = 8.f;
 	BrakingDecelerationWalking = 2048.f;
 
-	static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->bAcceptingMovementInput = true;
-	static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->UnCrouch();
+	AParkourFPSCharacter* characterOwner = static_cast<AParkourFPSCharacter*>(GetCharacterOwner());
+	characterOwner->bAcceptingMovementInput = true;
+	characterOwner->UnCrouch();
+	characterOwner->PlaySlideEndMontage();
 }
 
 void UParkourMovementComponent::EndCrouch()
