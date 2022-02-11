@@ -447,6 +447,15 @@ bool UParkourMovementComponent::BeginWallRun()
 	{
 		IsWallRunning = true;
 
+		if (IsWallRunningL)
+		{
+			static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->PlayWallRunLMontage();
+		}
+		else
+		{
+			static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->PlayWallRunRMontage();
+		}
+
 		return true;
 	}
 
@@ -458,6 +467,15 @@ void UParkourMovementComponent::EndWallRun()
 	UE_LOG(LogTemp, Display, TEXT("WALL RUN END %i"), GetPawnOwner()->GetLocalRole());
 
 	SetMovementMode(EMovementMode::MOVE_Falling);
+
+	if (IsWallRunning)
+	{
+		static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->EndWallRunLMontage();
+	}
+	else
+	{
+		static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->EndWallRunRMontage();
+	}
 
 	IsWallRunning = false;
 	IsWallRunningL = false;

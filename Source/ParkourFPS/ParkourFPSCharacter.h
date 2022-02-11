@@ -87,5 +87,17 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void PlaySlideEndMontage();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void PlayWallRunLMontage();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void PlayWallRunRMontage();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void EndWallRunLMontage();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void EndWallRunRMontage();
 };
 
