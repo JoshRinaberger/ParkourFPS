@@ -30,6 +30,9 @@ private:
 
 	uint8 WantsToWallRun : 1;
 	uint8 WantsToSlide : 1;
+	uint8 WantsToVerticalWallRun : 1;
+	
+	uint8 WantsToVerticalWallRunRotate : 1;
 	uint8 WantsToCustomJump : 1;
 
 	// ========================= WALL RUNNING VARIABLES =======================================
@@ -59,6 +62,20 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Custom Character Movement|Wall Running", Meta = (AllowPrivateAccess = "true"))
 	float WallRunLineTraceVerticalTolerance = 50.0f;
+
+	// ========================= VERTICAL WALL RUN  VARIABLES =======================================
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Vertical Wall Run ", Meta = (AllowPrivateAccess = "true"))
+	float VerticalWallRunGravity = .25;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Vertical Wall Run ", Meta = (AllowPrivateAccess = "true"))
+	float VerticalWallRunStartSpeed = 10.0;
+
+	float VerticalWallRunMinimumSpeed = 5.0;
+
+	bool IsVerticalWallRunning = false;
+
+	bool IsFacingTowardsWall = false;
 
 	// ========================= SLIDING VARIABLES =======================================
 
@@ -99,6 +116,12 @@ protected:
 
 	UFUNCTION()
 	void OnActorHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit);
+
+	// Vertical Wall Run Functions
+	bool CheckCanVerticalWallRun(const FHitResult Hit);
+	bool BeginVerticalWallRun();
+	void EndVerticalWallRun();
+	void PhysVerticalWallRun(float deltaTime, int32 Iterations);
 
 	// Sliding Functions
 	bool CheckCanSlide();
@@ -193,6 +216,7 @@ UENUM(BlueprintType)
 enum ECustomMovementMode
 {
 	CMOVE_WallRunning   UMETA(DisplayName = "WallRunning"),
+	CMOVE_VerticalWallRunning   UMETA(DisplayName = "WallRunning"),
 	CMOVE_Sliding		UMETA(DisplayName = "Sliding"),
 	CMOVE_Ziplining		UMETA(DisplayName = "Ziplining"),
 	CMOVE_Vaulting		UMETA(DisplayName = "Vaulting"),

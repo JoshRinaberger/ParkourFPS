@@ -505,6 +505,25 @@ void UParkourMovementComponent::WallRunJump()
 
 #pragma endregion
 
+#pragma region Vertical Wall Run Functions
+
+bool UParkourMovementComponent::CheckCanVerticalWallRun(const FHitResult Hit)
+{
+	return true;
+}
+
+bool UParkourMovementComponent::BeginVerticalWallRun()
+{
+	return true;
+}
+
+void UParkourMovementComponent::EndVerticalWallRun()
+{
+
+}
+
+#pragma endregion
+
 #pragma region Slide and Crouch Functions
 
 bool UParkourMovementComponent::CheckCanSlide()
@@ -639,6 +658,8 @@ FNetworkPredictionData_Client* UParkourMovementComponent::GetPredictionData_Clie
 	return ClientPredictionData;
 }
 
+#pragma region Phys Functions
+
 void UParkourMovementComponent::PhysCustom(float deltaTime, int32 Iterations)
 {
 	// Phys* functions should only run for characters with ROLE_Authority or ROLE_AutonomousProxy. However, Unreal calls PhysCustom in
@@ -653,6 +674,14 @@ void UParkourMovementComponent::PhysCustom(float deltaTime, int32 Iterations)
 		UE_LOG(LogParkourMovement, Warning, TEXT("Phys Wall Run %i"), GetPawnOwner()->GetLocalRole());
 
 		PhysWallRun(deltaTime, Iterations);
+
+		break;
+	}
+	case ECustomMovementMode::CMOVE_VerticalWallRunning:
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Phys Vertical Wall Run %i"), GetPawnOwner()->GetLocalRole());
+
+		PhysVerticalWallRun(deltaTime, Iterations);
 
 		break;
 	}
@@ -742,6 +771,11 @@ void UParkourMovementComponent::PhysWallRun(float deltaTime, int32 Iterations)
 	const FVector AdjustedVelocity = Velocity * deltaTime;
 	FHitResult Hit(1.f);
 	SafeMoveUpdatedComponent(AdjustedVelocity, UpdatedComponent->GetComponentQuat(), true, Hit);
+
+}
+
+void UParkourMovementComponent::PhysVerticalWallRun(float deltaTime, int32 Iterations)
+{
 
 }
 
@@ -850,6 +884,8 @@ void UParkourMovementComponent::ApplySlideForce()
 
 	AddForce(FloorInfluenceForce);
 }
+
+#pragma endregion
 
 void UParkourMovementComponent::SetMovementKey1Down(bool KeyIsDown)
 {
