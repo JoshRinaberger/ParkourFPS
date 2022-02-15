@@ -54,6 +54,8 @@ void UParkourMovementComponent::TickComponent(float DeltaTime, enum ELevelTick T
 		else {
 			WantsToSlide = false;
 		}
+
+		WantsToVerticalWallRun = MovementKey3Down;
 	}
 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
@@ -73,6 +75,7 @@ void UParkourMovementComponent::UpdateFromCompressedFlags(uint8 Flags)
 	// Read the values from the compressed flags
 	WantsToWallRun = (Flags & FSavedMove_Character::FLAG_Custom_0) != 0;
 	WantsToSlide = (Flags & FSavedMove_Character::FLAG_Custom_1) != 0;
+	WantsToVerticalWallRun = (Flags & FSavedMove_Character::FLAG_Custom_2) != 0;
 }
 
 void UParkourMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSeconds)
@@ -80,6 +83,11 @@ void UParkourMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSe
 	if (WantsToWallRun && IsWallRunning && !IsCustomMovementMode(ECustomMovementMode::CMOVE_WallRunning))
 	{
 		SetMovementMode(EMovementMode::MOVE_Custom, ECustomMovementMode::CMOVE_WallRunning);
+	}
+
+	if (WantsToVerticalWallRun && IsVerticalWallRunning && !IsCustomMovementMode(ECustomMovementMode::CMOVE_VerticalWallRunning))
+	{
+		SetMovementMode(EMovementMode::MOVE_Custom, ECustomMovementMode::CMOVE_VerticalWallRunning);
 	}
 
 	if (WantsToSlide && !IsCrouched && !IsSliding)
@@ -134,6 +142,11 @@ void UParkourMovementComponent::OnMovementUpdated(float DeltaSeconds, const FVec
 
 void UParkourMovementComponent::OnActorHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit)
 {
+	if (GetPawnOwner()->GetLocalRole() <= ROLE_SimulatedProxy)
+	{
+		return;
+	}
+
 	// return if a custom move is already being performed
 	if (MovementMode == EMovementMode::MOVE_Custom)
 	{
@@ -143,6 +156,13 @@ void UParkourMovementComponent::OnActorHit(AActor* SelfActor, AActor* OtherActor
 	// Runs checks after hitting a potential wall and begins wall running if the checks are passed
 	// If wall run can happen and starts then no need to check further actions
 	if (CheckCanWallRun(Hit))
+	{
+		return;
+	}
+
+	// Runs checks after hitting a potential wall and begins vertical wall running if the checks are passed
+	// If vertical wall run can happen and starts then no need to check further actions
+	if (CheckCanVerticalWallRun(Hit))
 	{
 		return;
 	}
@@ -164,6 +184,11 @@ bool UParkourMovementComponent::IsWalkingForward()
 
 bool UParkourMovementComponent::CheckCanWallRun(const FHitResult Hit)
 {
+	if (WantsToWallRun == false)
+	{
+		return false;
+	}
+
 	// No need to check further if the character is already wallrunning
 	if (IsCustomMovementMode(ECustomMovementMode::CMOVE_WallRunning))
 	{
@@ -509,17 +534,57 @@ void UParkourMovementComponent::WallRunJump()
 
 bool UParkourMovementComponent::CheckCanVerticalWallRun(const FHitResult Hit)
 {
+	UE_LOG(LogParkourMovement, Warning, TEXT("Check Vertical Wall Run"));
+
+	if (WantsToVerticalWallRun == false)
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Vertical Wall Run Check Failed: Key Not Down"));
+
+		return false;
+	}
+
+	if (MovementMode != EMovementMode::MOVE_Walking)
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Vertical Wall Run Check Failed: Not Walking"));
+
+		return false;
+	}
+
+	if (CanSurfaceBeWallRan(Hit.ImpactNormal) == false)
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Vertical Wall Run Check Failed: Wall Angle"));
+
+		return false;
+	}
+
+	// WALL HEIGHT CHECK GOES HERE
+
+	BeginVerticalWallRun();
+
+	UE_LOG(LogParkourMovement, Warning, TEXT("Vertical Wall Run Check Passed"));
+
 	return true;
 }
 
 bool UParkourMovementComponent::BeginVerticalWallRun()
 {
-	return true;
+	UE_LOG(LogParkourMovement, Warning, TEXT("Begin Vertical Wall Run %i"), GetPawnOwner()->GetLocalRole());
+
+	if (WantsToVerticalWallRun == true && !IsCustomMovementMode(ECustomMovementMode::CMOVE_VerticalWallRunning))
+	{
+		IsVerticalWallRunning = true;
+
+		return true;
+	}
+
+	return false;
 }
 
 void UParkourMovementComponent::EndVerticalWallRun()
 {
+	IsVerticalWallRunning = false;
 
+	MovementMode = EMovementMode::MOVE_Falling;
 }
 
 #pragma endregion
@@ -972,6 +1037,7 @@ void FSavedMove_My::SetMoveFor(ACharacter* Character, float InDeltaTime, FVector
 		// Copy values into the saved move
 		SavedMove1 = charMove->WantsToWallRun;
 		SavedMove2 = charMove->WantsToSlide;
+		SavedMove3 = charMove->WantsToVerticalWallRun;
 
 		SavedWantsToCustomJump = charMove->WantsToCustomJump;
 	}
@@ -988,6 +1054,7 @@ void FSavedMove_My::PrepMoveFor(class ACharacter* Character)
 		// Copy values out of the saved move
 		charMove->WantsToWallRun = SavedMove1;
 		charMove->WantsToSlide = SavedMove2;
+		charMove->WantsToVerticalWallRun = SavedMove3;
 
 		charMove->WantsToCustomJump = SavedWantsToCustomJump;
 	}
