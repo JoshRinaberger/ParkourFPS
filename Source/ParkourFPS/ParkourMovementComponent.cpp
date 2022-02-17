@@ -8,6 +8,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Engine/World.h"
 #include "ParkourFPSCharacter.h"
+#include "DrawDebugHelpers.h"
 
 DEFINE_LOG_CATEGORY(LogMovementCorrections);
 DEFINE_LOG_CATEGORY(LogParkourMovement);
@@ -557,11 +558,57 @@ bool UParkourMovementComponent::CheckCanVerticalWallRun(const FHitResult Hit)
 		return false;
 	}
 
-	// WALL HEIGHT CHECK GOES HERE
+	if (CheckVerticalWallRunTraces() == false)
+	{
+
+	}
 
 	BeginVerticalWallRun();
 
 	UE_LOG(LogParkourMovement, Warning, TEXT("Vertical Wall Run Check Passed"));
+
+	return true;
+}
+
+bool UParkourMovementComponent::CheckVerticalWallRunTraces()
+{
+	// Required parameters for line traces
+	FCollisionQueryParams TraceParams;
+	TraceParams.AddIgnoredActor(CharacterOwner);
+	TraceParams.AddIgnoredActor(GetPawnOwner());
+
+	// Line trace at the character's height
+	FHitResult HitLow;
+	FVector TraceStart = CharacterOwner->GetActorLocation();
+	FVector TraceEnd = TraceStart + (CharacterOwner->GetActorForwardVector() * 75);
+	GetWorld()->LineTraceSingleByChannel(HitLow, TraceStart, TraceEnd, ECC_Visibility, TraceParams);
+
+	if (DrawDebug)
+	{
+		DrawDebugLine(GetWorld(), TraceStart, TraceEnd, FColor::Emerald, true, 1, 0, 2);
+	}
+
+	if (HitLow.bBlockingHit == false)
+	{
+		return false;
+	}
+
+	// Line trace above the character
+	// Line trace at the character's height
+	FHitResult HitHigh;
+	TraceStart = CharacterOwner->GetActorLocation();
+	TraceStart.Z += CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+	TraceEnd = TraceStart + (CharacterOwner->GetActorForwardVector() * 200);
+
+	if (DrawDebug)
+	{
+		DrawDebugLine(GetWorld(), TraceStart, TraceEnd, FColor::Emerald, true, 1, 0, 2);
+	}
+
+	if (HitHigh.bBlockingHit == false)
+	{
+		return false;
+	}
 
 	return true;
 }
@@ -841,7 +888,39 @@ void UParkourMovementComponent::PhysWallRun(float deltaTime, int32 Iterations)
 
 void UParkourMovementComponent::PhysVerticalWallRun(float deltaTime, int32 Iterations)
 {
+	if (WantsToVerticalWallRun == false)
+	{
+		EndVerticalWallRun();
+	}
 
+	// Required parameters for line traces
+	FCollisionQueryParams TraceParams;
+	TraceParams.AddIgnoredActor(CharacterOwner);
+	TraceParams.AddIgnoredActor(GetPawnOwner());
+
+	// Line trace at the character's height
+	FHitResult HitWall;
+	FVector TraceStart = CharacterOwner->GetActorLocation();
+	FVector TraceEnd = TraceStart + (CharacterOwner->GetActorForwardVector() * 75);
+	GetWorld()->LineTraceSingleByChannel(HitWall, TraceStart, TraceEnd, ECC_Visibility, TraceParams);
+
+	FVector WallNormal = HitWall.ImpactNormal;
+
+	// Direction of the wall
+	FVector WallDirection = FVector::CrossProduct(WallNormal, CharacterOwner->GetActorUpVector());
+	WallDirection = FVector::CrossProduct(WallNormal, WallDirection);
+	WallDirection.Normalize();
+
+	WallDirection *= -1;
+
+	Velocity = WallDirection * VerticalWallRunStartSpeed;
+
+	UE_LOG(LogParkourMovement, Warning, TEXT("Vertical Wall Run Velocity: %s"), *Velocity.ToString());
+
+	// Apply the velocity to the character taking into account delta time to make the movement independent of frame rate
+	const FVector AdjustedVelocity = Velocity * deltaTime;
+	FHitResult Hit(1.f);
+	SafeMoveUpdatedComponent(AdjustedVelocity, UpdatedComponent->GetComponentQuat(), true, Hit);
 }
 
 void UParkourMovementComponent::PhysSlide(float deltaTime, int32 Iterations)

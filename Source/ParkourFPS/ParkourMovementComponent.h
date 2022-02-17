@@ -35,6 +35,9 @@ private:
 	uint8 WantsToVerticalWallRunRotate : 1;
 	uint8 WantsToCustomJump : 1;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement", Meta = (AllowPrivateAccess = "true"))
+	bool DrawDebug = true;
+
 	// ========================= WALL RUNNING VARIABLES =======================================
 
 	bool IsWallRunning = false;
@@ -119,6 +122,7 @@ protected:
 
 	// Vertical Wall Run Functions
 	bool CheckCanVerticalWallRun(const FHitResult Hit);
+	bool CheckVerticalWallRunTraces();
 	bool BeginVerticalWallRun();
 	void EndVerticalWallRun();
 	void PhysVerticalWallRun(float deltaTime, int32 Iterations);
