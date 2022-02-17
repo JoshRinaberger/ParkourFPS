@@ -126,6 +126,7 @@ protected:
 	bool BeginVerticalWallRun();
 	void EndVerticalWallRun();
 	void PhysVerticalWallRun(float deltaTime, int32 Iterations);
+	void SetVerticalWallRunVelocity(float Speed);
 
 	// Sliding Functions
 	bool CheckCanSlide();

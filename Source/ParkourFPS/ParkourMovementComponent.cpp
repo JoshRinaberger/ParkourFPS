@@ -126,6 +126,12 @@ void UParkourMovementComponent::OnMovementModeChanged(EMovementMode PreviousMove
 
 			break;
 		}
+		case ECustomMovementMode::CMOVE_VerticalWallRunning:
+		{
+			SetVerticalWallRunVelocity(VerticalWallRunStartSpeed);
+
+			break;
+		}
 		}
 	}
 
@@ -893,6 +899,18 @@ void UParkourMovementComponent::PhysVerticalWallRun(float deltaTime, int32 Itera
 		EndVerticalWallRun();
 	}
 
+	float CurrentSpeed = Velocity.Size();
+
+	SetVerticalWallRunVelocity(CurrentSpeed);
+
+	// Apply the velocity to the character taking into account delta time to make the movement independent of frame rate
+	const FVector AdjustedVelocity = Velocity * deltaTime;
+	FHitResult Hit(1.f);
+	SafeMoveUpdatedComponent(AdjustedVelocity, UpdatedComponent->GetComponentQuat(), true, Hit);
+}
+
+void UParkourMovementComponent::SetVerticalWallRunVelocity(float Speed)
+{
 	// Required parameters for line traces
 	FCollisionQueryParams TraceParams;
 	TraceParams.AddIgnoredActor(CharacterOwner);
@@ -911,16 +929,15 @@ void UParkourMovementComponent::PhysVerticalWallRun(float deltaTime, int32 Itera
 	WallDirection = FVector::CrossProduct(WallNormal, WallDirection);
 	WallDirection.Normalize();
 
+	FVector GravityToAdd = WallDirection * VerticalWallRunGravity;
+
 	WallDirection *= -1;
 
-	Velocity = WallDirection * VerticalWallRunStartSpeed;
+	Velocity = WallDirection * Speed;
+	Velocity += GravityToAdd;
 
 	UE_LOG(LogParkourMovement, Warning, TEXT("Vertical Wall Run Velocity: %s"), *Velocity.ToString());
-
-	// Apply the velocity to the character taking into account delta time to make the movement independent of frame rate
-	const FVector AdjustedVelocity = Velocity * deltaTime;
-	FHitResult Hit(1.f);
-	SafeMoveUpdatedComponent(AdjustedVelocity, UpdatedComponent->GetComponentQuat(), true, Hit);
+	UE_LOG(LogParkourMovement, Warning, TEXT("Vertical Wall Run Gravity To Add: %s"), *GravityToAdd.ToString());
 }
 
 void UParkourMovementComponent::PhysSlide(float deltaTime, int32 Iterations)
