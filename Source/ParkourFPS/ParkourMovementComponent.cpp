@@ -520,22 +520,38 @@ void UParkourMovementComponent::EndWallRun()
 
 void UParkourMovementComponent::WallRunJump()
 {
-	if (!IsWallRunning)
-	{
-		return;
-	}
-
 	if (WantsToCustomJump)
 	{
-		EndWallRun();
+		if (IsWallRunning)
+		{
+			EndWallRun();
 
-		FVector LaunchVelocity;
+			FVector LaunchVelocity;
 
-		LaunchVelocity.X = WallRunJumpOffForce * (CharacterOwner->GetActorForwardVector().X + WallRunNormal.X);
-		LaunchVelocity.Y = WallRunJumpOffForce * (CharacterOwner->GetActorForwardVector().Y + WallRunNormal.Y);
-		LaunchVelocity.Z = WallRunJumpHeight;
+			LaunchVelocity.X = WallRunJumpOffForce * (CharacterOwner->GetActorForwardVector().X + WallRunNormal.X);
+			LaunchVelocity.Y = WallRunJumpOffForce * (CharacterOwner->GetActorForwardVector().Y + WallRunNormal.Y);
+			LaunchVelocity.Z = WallRunJumpHeight;
 
-		Launch(LaunchVelocity);
+			Launch(LaunchVelocity);
+		}
+		else if (IsVerticalWallRunning)
+		{
+			EndVerticalWallRun();
+
+			FVector LaunchVelocity;
+
+			LaunchVelocity.X = WallRunJumpOffForce * (CharacterOwner->GetActorForwardVector().X);
+			LaunchVelocity.Y = WallRunJumpOffForce * (CharacterOwner->GetActorForwardVector().Y);
+			LaunchVelocity.Z = WallRunJumpHeight;
+
+			if (IsFacingTowardsWall)
+			{
+				LaunchVelocity.X *= -1;
+				LaunchVelocity.Y *= -1;
+			}
+
+			Launch(LaunchVelocity);
+		}
 	}
 }
 
