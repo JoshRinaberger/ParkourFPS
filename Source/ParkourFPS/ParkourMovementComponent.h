@@ -74,11 +74,21 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Vertical Wall Run ", Meta = (AllowPrivateAccess = "true"))
 	float VerticalWallRunStartSpeed = 10.0;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Vertical Wall Run ", Meta = (AllowPrivateAccess = "true"))
 	float VerticalWallRunMinimumSpeed = 5.0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Vertical Wall Run ", Meta = (AllowPrivateAccess = "true"))
+	float VerticalWallRunRotationSpeed = 10.0;
 
 	bool IsVerticalWallRunning = false;
 
 	bool IsFacingTowardsWall = false;
+	bool IsRotatingAwayFromWall = false;
+
+	FRotator VerticalWallRunTargetRotation;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Vertical Wall Run ", Meta = (AllowPrivateAccess = "true"))
+	float VerticalWallRunRotationCoincidentCosine = 5.0;
 
 	// ========================= SLIDING VARIABLES =======================================
 
@@ -127,6 +137,8 @@ protected:
 	void EndVerticalWallRun();
 	void PhysVerticalWallRun(float deltaTime, int32 Iterations);
 	void SetVerticalWallRunVelocity(float Speed);
+	void SetVerticalWallRunRotation();
+	void ApplyVerticalWallRunRotation();
 
 	// Sliding Functions
 	bool CheckCanSlide();
@@ -160,13 +172,16 @@ public:
 	void SetMovementKey1Down(bool KeyIsDown);
 
 	UFUNCTION(BlueprintCallable, Category = "Movement")
-		void SetMovementKey2Down(bool KeyIsDown);
+	void SetMovementKey2Down(bool KeyIsDown);
 
 	UFUNCTION(BlueprintCallable, Category = "Movement")
-		void SetMovementKey3Down(bool KeyIsDown);
+	void SetMovementKey3Down(bool KeyIsDown);
 
 	UFUNCTION(BlueprintCallable, Category = "Movement")
-		void SetWantsToCustomJump(bool KeyIsDown);
+	void SetWantsToCustomJump(bool KeyIsDown);
+
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	void SetWantsToVerticalWallRunRotate(bool KeyIsDown);
 
 
 	bool IsCustomMovementMode(uint8 custom_movement_mode) const;
@@ -201,6 +216,7 @@ private:
 	uint8 SavedMove4 : 1;
 
 	uint8 SavedWantsToCustomJump : 1;
+	uint8 SavedWantsToVerticalWallRunRotate : 1;
 };
 
 class FNetworkPredictionData_Client_My : public FNetworkPredictionData_Client_Character
@@ -222,6 +238,7 @@ enum ECustomMovementMode
 {
 	CMOVE_WallRunning   UMETA(DisplayName = "WallRunning"),
 	CMOVE_VerticalWallRunning   UMETA(DisplayName = "WallRunning"),
+	CMOVE_WallHang UMETA(DisplayName = "WallHang"),
 	CMOVE_Sliding		UMETA(DisplayName = "Sliding"),
 	CMOVE_Ziplining		UMETA(DisplayName = "Ziplining"),
 	CMOVE_Vaulting		UMETA(DisplayName = "Vaulting"),

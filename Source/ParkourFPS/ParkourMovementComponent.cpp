@@ -145,6 +145,10 @@ void UParkourMovementComponent::OnMovementUpdated(float DeltaSeconds, const FVec
 	WallRunJump();
 
 	ApplySlideForce();
+
+	SetVerticalWallRunRotation();
+
+	ApplyVerticalWallRunRotation();
 }
 
 void UParkourMovementComponent::OnActorHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit)
@@ -566,7 +570,7 @@ bool UParkourMovementComponent::CheckCanVerticalWallRun(const FHitResult Hit)
 
 	if (CheckVerticalWallRunTraces() == false)
 	{
-
+		return false;
 	}
 
 	BeginVerticalWallRun();
@@ -596,6 +600,8 @@ bool UParkourMovementComponent::CheckVerticalWallRunTraces()
 
 	if (HitLow.bBlockingHit == false)
 	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Check Vertical Wall Run Low Trace Failed"));
+
 		return false;
 	}
 
@@ -604,7 +610,8 @@ bool UParkourMovementComponent::CheckVerticalWallRunTraces()
 	FHitResult HitHigh;
 	TraceStart = CharacterOwner->GetActorLocation();
 	TraceStart.Z += CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
-	TraceEnd = TraceStart + (CharacterOwner->GetActorForwardVector() * 200);
+	TraceEnd = TraceStart + (CharacterOwner->GetActorForwardVector() * 100);
+	GetWorld()->LineTraceSingleByChannel(HitHigh, TraceStart, TraceEnd, ECC_Visibility, TraceParams);
 
 	if (DrawDebug)
 	{
@@ -613,6 +620,8 @@ bool UParkourMovementComponent::CheckVerticalWallRunTraces()
 
 	if (HitHigh.bBlockingHit == false)
 	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Check Vertical Wall Run High Trace Failed"));
+
 		return false;
 	}
 
@@ -626,6 +635,7 @@ bool UParkourMovementComponent::BeginVerticalWallRun()
 	if (WantsToVerticalWallRun == true && !IsCustomMovementMode(ECustomMovementMode::CMOVE_VerticalWallRunning))
 	{
 		IsVerticalWallRunning = true;
+		IsFacingTowardsWall = true;
 
 		return true;
 	}
@@ -636,6 +646,8 @@ bool UParkourMovementComponent::BeginVerticalWallRun()
 void UParkourMovementComponent::EndVerticalWallRun()
 {
 	IsVerticalWallRunning = false;
+	IsFacingTowardsWall = false;
+	IsRotatingAwayFromWall = false;
 
 	MovementMode = EMovementMode::MOVE_Falling;
 }
@@ -906,7 +918,10 @@ void UParkourMovementComponent::PhysVerticalWallRun(float deltaTime, int32 Itera
 	// Apply the velocity to the character taking into account delta time to make the movement independent of frame rate
 	const FVector AdjustedVelocity = Velocity * deltaTime;
 	FHitResult Hit(1.f);
-	SafeMoveUpdatedComponent(AdjustedVelocity, UpdatedComponent->GetComponentQuat(), true, Hit);
+
+	SafeMoveUpdatedComponent(AdjustedVelocity, UpdatedComponent->GetComponentRotation(), true, Hit);
+
+	
 }
 
 void UParkourMovementComponent::SetVerticalWallRunVelocity(float Speed)
@@ -938,6 +953,57 @@ void UParkourMovementComponent::SetVerticalWallRunVelocity(float Speed)
 
 	UE_LOG(LogParkourMovement, Warning, TEXT("Vertical Wall Run Velocity: %s"), *Velocity.ToString());
 	UE_LOG(LogParkourMovement, Warning, TEXT("Vertical Wall Run Gravity To Add: %s"), *GravityToAdd.ToString());
+}
+
+void UParkourMovementComponent::SetVerticalWallRunRotation()
+{
+	if (!IsVerticalWallRunning)
+	{
+		return;
+	}
+
+	if (WantsToVerticalWallRunRotate && IsFacingTowardsWall && !IsRotatingAwayFromWall)
+	{
+		IsFacingTowardsWall = false;
+		IsRotatingAwayFromWall = true;
+
+		VerticalWallRunTargetRotation = CharacterOwner->GetActorRotation();
+
+		UE_LOG(LogParkourMovement, Warning, TEXT("Vertical Wall Run Starting Rotation: %s"), *VerticalWallRunTargetRotation.ToString());
+
+		VerticalWallRunTargetRotation.Yaw = VerticalWallRunTargetRotation.Yaw + 180;
+
+		UE_LOG(LogParkourMovement, Warning, TEXT("Vertical Wall Run Target Rotation: %s"), *VerticalWallRunTargetRotation.ToString());
+	}
+}
+
+void UParkourMovementComponent::ApplyVerticalWallRunRotation()
+{
+	if (!IsVerticalWallRunning)
+	{
+		return;
+	}
+
+	if (IsRotatingAwayFromWall)
+	{
+		float YawDifference = FMath::Abs(CharacterOwner->GetActorRotation().Yaw - VerticalWallRunTargetRotation.Yaw);
+
+		FVector CurrentRotationVector = CharacterOwner->GetActorRotation().Vector();
+		FVector TargetRotationVector = VerticalWallRunTargetRotation.Vector();
+
+		UE_LOG(LogParkourMovement, Warning, TEXT("Controller Rotation: %s"), *GetPawnOwner()->GetControlRotation().ToString());
+		UE_LOG(LogParkourMovement, Warning, TEXT("Yaw Difference: %f"), YawDifference);
+
+		if (FVector::Coincident(CurrentRotationVector, TargetRotationVector, cosf(VerticalWallRunRotationCoincidentCosine)))
+		{
+			IsRotatingAwayFromWall = false;
+			UE_LOG(LogParkourMovement, Warning, TEXT("ENDING VERTICAL WALL RUN ROTATION"));
+		}
+		else
+		{
+			GetPawnOwner()->AddControllerYawInput(VerticalWallRunRotationSpeed);
+		}
+	}
 }
 
 void UParkourMovementComponent::PhysSlide(float deltaTime, int32 Iterations)
@@ -1075,6 +1141,18 @@ void UParkourMovementComponent::SetWantsToCustomJump(bool keyIsDown)
 	}
 }
 
+void UParkourMovementComponent::SetWantsToVerticalWallRunRotate(bool KeyIsDown)
+{
+	if (IsCustomMovementMode(ECustomMovementMode::CMOVE_VerticalWallRunning))
+	{
+		WantsToVerticalWallRunRotate = KeyIsDown;
+	}
+	else
+	{
+		WantsToVerticalWallRunRotate = false;
+	}
+}
+
 bool UParkourMovementComponent::IsCustomMovementMode(uint8 custom_movement_mode) const
 {
 	return MovementMode == EMovementMode::MOVE_Custom && CustomMovementMode == custom_movement_mode;
@@ -1091,6 +1169,7 @@ void FSavedMove_My::Clear()
 	SavedMove4 = 0;
 
 	SavedWantsToCustomJump = false;
+	SavedWantsToVerticalWallRunRotate = false;
 }
 
 uint8 FSavedMove_My::GetCompressedFlags() const
@@ -1136,6 +1215,7 @@ void FSavedMove_My::SetMoveFor(ACharacter* Character, float InDeltaTime, FVector
 		SavedMove3 = charMove->WantsToVerticalWallRun;
 
 		SavedWantsToCustomJump = charMove->WantsToCustomJump;
+		SavedWantsToVerticalWallRunRotate = charMove->WantsToVerticalWallRunRotate;
 	}
 }
 
@@ -1153,6 +1233,7 @@ void FSavedMove_My::PrepMoveFor(class ACharacter* Character)
 		charMove->WantsToVerticalWallRun = SavedMove3;
 
 		charMove->WantsToCustomJump = SavedWantsToCustomJump;
+		charMove->WantsToVerticalWallRunRotate = SavedWantsToVerticalWallRunRotate;
 	}
 }
 
