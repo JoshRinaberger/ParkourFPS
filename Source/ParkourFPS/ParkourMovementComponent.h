@@ -32,8 +32,8 @@ private:
 	uint8 WantsToSlide : 1;
 	uint8 WantsToVerticalWallRun : 1;
 	
-	uint8 WantsToVerticalWallRunRotate : 1;
 	uint8 WantsToCustomJump : 1;
+	uint8 WantsToVerticalWallRunRotate : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement", Meta = (AllowPrivateAccess = "true"))
 	bool DrawDebug = true;
@@ -82,7 +82,7 @@ private:
 
 	bool IsVerticalWallRunning = false;
 
-	bool IsFacingTowardsWall = false;
+	bool IsFacingTowardsWall = true;
 	bool IsRotatingAwayFromWall = false;
 
 	FRotator VerticalWallRunTargetRotation;
@@ -182,6 +182,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	void SetWantsToVerticalWallRunRotate(bool KeyIsDown);
+
+	UFUNCTION(Unreliable, Server, WithValidation)
+	void ServerSetWantsToVerticalWallRunRotate(const bool WantsToRotate);
+
 
 
 	bool IsCustomMovementMode(uint8 custom_movement_mode) const;

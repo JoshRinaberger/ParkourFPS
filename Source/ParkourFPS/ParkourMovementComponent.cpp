@@ -142,6 +142,11 @@ void UParkourMovementComponent::OnMovementUpdated(float DeltaSeconds, const FVec
 {
 	Super::OnMovementUpdated(DeltaSeconds, OldLocation, OldVelocity);
 
+	if (PawnOwner->GetLocalRole() < ROLE_Authority)
+	{
+		ServerSetWantsToVerticalWallRunRotate(WantsToVerticalWallRunRotate);
+	}
+
 	WallRunJump();
 
 	ApplySlideForce();
@@ -536,8 +541,6 @@ void UParkourMovementComponent::WallRunJump()
 		}
 		else if (IsVerticalWallRunning)
 		{
-			EndVerticalWallRun();
-
 			FVector LaunchVelocity;
 
 			LaunchVelocity.X = WallRunJumpOffForce * (CharacterOwner->GetActorForwardVector().X);
@@ -546,11 +549,35 @@ void UParkourMovementComponent::WallRunJump()
 
 			if (IsFacingTowardsWall)
 			{
-				LaunchVelocity.X *= -1;
-				LaunchVelocity.Y *= -1;
+				LaunchVelocity.X = LaunchVelocity.X * -1.f;
+				LaunchVelocity.Y = LaunchVelocity.Y * -1.f;
 			}
 
+			UE_LOG(LogParkourMovement, Warning, TEXT("====== Jump %i ======="), GetPawnOwner()->GetLocalRole());
+
+			if (IsVerticalWallRunning)
+				UE_LOG(LogParkourMovement, Warning, TEXT("Jump Is Vertical Wall Running"));
+
+			if (IsRotatingAwayFromWall)
+				UE_LOG(LogParkourMovement, Warning, TEXT("Jump Is Vertical Wall Rotating"));
+
+			if (IsFacingTowardsWall)
+				UE_LOG(LogParkourMovement, Warning, TEXT("Jump Is Facing Wall"));
+
+			EndVerticalWallRun();
+
+			if (IsVerticalWallRunning)
+				UE_LOG(LogParkourMovement, Warning, TEXT("Jump Is Vertical Wall Running"));
+
+			if (IsRotatingAwayFromWall)
+				UE_LOG(LogParkourMovement, Warning, TEXT("Jump Is Vertical Wall Rotating"));
+
+			if (IsFacingTowardsWall)
+				UE_LOG(LogParkourMovement, Warning, TEXT("Jump Is Facing Wall"));
+
 			Launch(LaunchVelocity);
+
+			UE_LOG(LogParkourMovement, Warning, TEXT("Wall Run Jump Velocity: %s"), *LaunchVelocity.ToString());
 		}
 	}
 }
@@ -964,8 +991,20 @@ void UParkourMovementComponent::SetVerticalWallRunVelocity(float Speed)
 
 	WallDirection *= -1;
 
-	Velocity = WallDirection * Speed;
-	Velocity += GravityToAdd;
+	//Velocity = WallDirection * Speed;
+	//Velocity += GravityToAdd;
+
+	
+	if (IsFacingTowardsWall)
+	{
+		Velocity = WallDirection * Speed;
+		Velocity += GravityToAdd;
+	}
+	else
+	{
+		Velocity = FVector(0, 0, -100);
+	}
+	
 
 	UE_LOG(LogParkourMovement, Warning, TEXT("Vertical Wall Run Velocity: %s"), *Velocity.ToString());
 	UE_LOG(LogParkourMovement, Warning, TEXT("Vertical Wall Run Gravity To Add: %s"), *GravityToAdd.ToString());
@@ -978,10 +1017,15 @@ void UParkourMovementComponent::SetVerticalWallRunRotation()
 		return;
 	}
 
+	if (WantsToVerticalWallRunRotate)
+		UE_LOG(LogParkourMovement, Warning, TEXT("WANTS TO VERTICAL WALL RUN ROTATE %i"), GetPawnOwner()->GetLocalRole());
+
 	if (WantsToVerticalWallRunRotate && IsFacingTowardsWall && !IsRotatingAwayFromWall)
 	{
 		IsFacingTowardsWall = false;
 		IsRotatingAwayFromWall = true;
+
+		UE_LOG(LogParkourMovement, Warning, TEXT("Set Vertical Wall Run Rotation %i"), GetPawnOwner()->GetLocalRole());
 
 		VerticalWallRunTargetRotation = CharacterOwner->GetActorRotation();
 
@@ -1167,6 +1211,16 @@ void UParkourMovementComponent::SetWantsToVerticalWallRunRotate(bool KeyIsDown)
 	{
 		WantsToVerticalWallRunRotate = false;
 	}
+}
+
+bool UParkourMovementComponent::ServerSetWantsToVerticalWallRunRotate_Validate(const bool WantsToRotate)
+{
+	return true;
+}
+
+void UParkourMovementComponent::ServerSetWantsToVerticalWallRunRotate_Implementation(const bool WantsToRotate)
+{
+	WantsToVerticalWallRunRotate = WantsToRotate;
 }
 
 bool UParkourMovementComponent::IsCustomMovementMode(uint8 custom_movement_mode) const
