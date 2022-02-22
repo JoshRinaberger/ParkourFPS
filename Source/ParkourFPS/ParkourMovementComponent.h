@@ -119,6 +119,7 @@ protected:
 	bool IsWalkingForward();
 
 	float GetAngleBetweenVectors(FVector Vector1, FVector Vector2);
+	FVector GetDirectionOfSurface(FVector ImpactNormal);
 
 	// Wall Running Functions
 	bool CheckCanWallRun(const FHitResult Hit);

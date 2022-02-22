@@ -142,7 +142,7 @@ void UParkourMovementComponent::OnMovementUpdated(float DeltaSeconds, const FVec
 {
 	Super::OnMovementUpdated(DeltaSeconds, OldLocation, OldVelocity);
 
-	if (PawnOwner->GetLocalRole() < ROLE_Authority)
+	if (PawnOwner->GetLocalRole() == ROLE_AutonomousProxy)
 	{
 		ServerSetWantsToVerticalWallRunRotate(WantsToVerticalWallRunRotate);
 	}
@@ -205,6 +205,15 @@ float UParkourMovementComponent::GetAngleBetweenVectors(FVector Vector1, FVector
 	Angle = acosf(Angle);
 
 	return Angle;
+}
+
+FVector UParkourMovementComponent::GetDirectionOfSurface(FVector ImpactNormal)
+{
+	FVector Direction = FVector::CrossProduct(ImpactNormal, CharacterOwner->GetActorUpVector());
+	Direction = FVector::CrossProduct(ImpactNormal, Direction);
+	Direction.Normalize();
+
+	return Direction;
 }
 
 #pragma region Wall Run Functions
@@ -659,12 +668,23 @@ bool UParkourMovementComponent::CheckVerticalWallRunTraces()
 		return false;
 	}
 
+	// Used to find the how far away from the character the high trace should go if the wall is angled
+	FVector WallDirection = GetDirectionOfSurface(HitLow.ImpactNormal) * -1;
+	float WallAngle = GetAngleBetweenVectors(WallDirection, CharacterOwner->GetActorUpVector());
+	float TraceEndDistance = 0;
+
+	if (WallDirection != FVector(0, 0, 0))
+	{
+		TraceEndDistance = CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() + CharacterOwner->GetActorLocation().Z;
+		TraceEndDistance *= tanf(WallAngle);
+	}
+
 	// Line trace above the character
 	// Line trace at the character's height
 	FHitResult HitHigh;
 	TraceStart = CharacterOwner->GetActorLocation();
 	TraceStart.Z += CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
-	TraceEnd = TraceStart + (CharacterOwner->GetActorForwardVector() * 100);
+	TraceEnd = TraceStart + (CharacterOwner->GetActorForwardVector() * (75 + TraceEndDistance));
 	GetWorld()->LineTraceSingleByChannel(HitHigh, TraceStart, TraceEnd, ECC_Visibility, TraceParams);
 
 	if (DrawDebug)
