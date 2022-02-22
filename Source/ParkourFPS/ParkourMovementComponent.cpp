@@ -196,6 +196,17 @@ bool UParkourMovementComponent::IsWalkingForward()
 	return FVector::DotProduct(velocity2D, forward2D) > 0.5f;
 }
 
+float UParkourMovementComponent::GetAngleBetweenVectors(FVector Vector1, FVector Vector2)
+{
+	Vector1.Normalize();
+	Vector2.Normalize();
+
+	float Angle = FVector::DotProduct(Vector1, Vector2);
+	Angle = acosf(Angle);
+
+	return Angle;
+}
+
 #pragma region Wall Run Functions
 
 bool UParkourMovementComponent::CheckCanWallRun(const FHitResult Hit)
