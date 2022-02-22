@@ -952,9 +952,25 @@ void UParkourMovementComponent::PhysVerticalWallRun(float deltaTime, int32 Itera
 	if (WantsToVerticalWallRun == false)
 	{
 		EndVerticalWallRun();
+
+		UE_LOG(LogParkourMovement, Warning, TEXT("Vertical wall run ended by wants to vertical wall run false"));
 	}
 
 	float CurrentSpeed = Velocity.Size();
+
+	if (IsFacingTowardsWall && CurrentSpeed < VerticalWallRunMinimumSpeed)
+	{
+		EndVerticalWallRun();
+
+		UE_LOG(LogParkourMovement, Warning, TEXT("Vertical wall run ended by min speed"));
+	}
+
+	if (!IsFacingTowardsWall && !IsRotatingAwayFromWall && CurrentSpeed > VerticalWallRunMaxSpeedFacingAwayFromWall)
+	{
+		EndVerticalWallRun();
+
+		UE_LOG(LogParkourMovement, Warning, TEXT("Vertical wall run ended by max speed"));
+	}
 
 	SetVerticalWallRunVelocity(CurrentSpeed);
 
@@ -977,7 +993,19 @@ void UParkourMovementComponent::SetVerticalWallRunVelocity(float Speed)
 	// Line trace at the character's height
 	FHitResult HitWall;
 	FVector TraceStart = CharacterOwner->GetActorLocation();
-	FVector TraceEnd = TraceStart + (CharacterOwner->GetActorForwardVector() * 75);
+	FVector TraceEnd;
+
+	if (IsFacingTowardsWall)
+	{
+		TraceEnd = TraceStart + (CharacterOwner->GetActorForwardVector() * 75);
+	}
+	else
+	{
+		TraceEnd = TraceStart - (CharacterOwner->GetActorForwardVector() * 75);
+	}
+	
+
+
 	GetWorld()->LineTraceSingleByChannel(HitWall, TraceStart, TraceEnd, ECC_Visibility, TraceParams);
 
 	FVector WallNormal = HitWall.ImpactNormal;
@@ -987,22 +1015,25 @@ void UParkourMovementComponent::SetVerticalWallRunVelocity(float Speed)
 	WallDirection = FVector::CrossProduct(WallNormal, WallDirection);
 	WallDirection.Normalize();
 
-	FVector GravityToAdd = WallDirection * VerticalWallRunGravity;
-
 	WallDirection *= -1;
 
-	//Velocity = WallDirection * Speed;
-	//Velocity += GravityToAdd;
+	FVector GravityToAdd = FVector(0, 0, 0);
 
 	
 	if (IsFacingTowardsWall)
 	{
+		GravityToAdd = WallDirection * VerticalWallRunGravity * -1;
 		Velocity = WallDirection * Speed;
+		Velocity += GravityToAdd;
+	}
+	else if (!IsRotatingAwayFromWall)
+	{
+		GravityToAdd = WallDirection * VerticalWallRunGravityFacingAwayFromWall * -1;
 		Velocity += GravityToAdd;
 	}
 	else
 	{
-		Velocity = FVector(0, 0, -100);
+		Velocity = FVector(0, 0, 0);
 	}
 	
 

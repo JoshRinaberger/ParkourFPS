@@ -71,11 +71,18 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Vertical Wall Run ", Meta = (AllowPrivateAccess = "true"))
 	float VerticalWallRunGravity = .25;
 
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Vertical Wall Run ", Meta = (AllowPrivateAccess = "true"))
+	float VerticalWallRunGravityFacingAwayFromWall = .25;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Vertical Wall Run ", Meta = (AllowPrivateAccess = "true"))
 	float VerticalWallRunStartSpeed = 10.0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Vertical Wall Run ", Meta = (AllowPrivateAccess = "true"))
 	float VerticalWallRunMinimumSpeed = 5.0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Vertical Wall Run ", Meta = (AllowPrivateAccess = "true"))
+	float VerticalWallRunMaxSpeedFacingAwayFromWall = 5.0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Vertical Wall Run ", Meta = (AllowPrivateAccess = "true"))
 	float VerticalWallRunRotationSpeed = 10.0;
