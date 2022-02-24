@@ -9,6 +9,7 @@
 #include "Engine/World.h"
 #include "ParkourFPSCharacter.h"
 #include "DrawDebugHelpers.h"
+#include "Zipline.h"
 
 DEFINE_LOG_CATEGORY(LogMovementCorrections);
 DEFINE_LOG_CATEGORY(LogParkourMovement);
@@ -77,6 +78,7 @@ void UParkourMovementComponent::UpdateFromCompressedFlags(uint8 Flags)
 	WantsToWallRun = (Flags & FSavedMove_Character::FLAG_Custom_0) != 0;
 	WantsToSlide = (Flags & FSavedMove_Character::FLAG_Custom_1) != 0;
 	WantsToVerticalWallRun = (Flags & FSavedMove_Character::FLAG_Custom_2) != 0;
+	WantsToZipline = (Flags & FSavedMove_Character::FLAG_Custom_3) != 0;
 }
 
 void UParkourMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSeconds)
@@ -94,6 +96,11 @@ void UParkourMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSe
 	if (WantsToSlide && !IsCrouched && !IsSliding)
 	{
 		BeginSlide();
+	}
+
+	if (WantsToZipline && IsZiplining)
+	{
+		SetMovementMode(EMovementMode::MOVE_Custom, ECustomMovementMode::CMOVE_Ziplining);
 	}
 
 	Super::UpdateCharacterStateBeforeMovement(DeltaSeconds);
@@ -132,6 +139,12 @@ void UParkourMovementComponent::OnMovementModeChanged(EMovementMode PreviousMove
 
 			break;
 		}
+		case ECustomMovementMode::CMOVE_Ziplining:
+		{
+			Velocity = ZiplineStartSpeed * ZiplineDirection;
+
+			break;
+		}
 		}
 	}
 
@@ -167,6 +180,31 @@ void UParkourMovementComponent::OnActorHit(AActor* SelfActor, AActor* OtherActor
 	if (MovementMode == EMovementMode::MOVE_Custom)
 	{
 		return;
+	}
+
+	if (IsValid(OtherActor))
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Zipline IsValid"));
+
+		if (OtherActor->IsA(AZipline::StaticClass()))
+		{
+			UE_LOG(LogParkourMovement, Warning, TEXT("Zipline IsA"));
+
+			bool CanZipline = CheckCanZipline();
+
+			if (CanZipline)
+			{
+				ZiplineStart = static_cast<AZipline*>(OtherActor)->StartPoint;
+				ZiplineEnd = static_cast<AZipline*>(OtherActor)->EndPoint;
+				ZiplineDirection = static_cast<AZipline*>(OtherActor)->GetZiplineDirection();
+			}
+
+			return;
+		}
+		else
+		{
+			UE_LOG(LogParkourMovement, Warning, TEXT("ACTOR HIT %s"), *OtherActor->GetName());
+		}
 	}
 
 	// Runs checks after hitting a potential wall and begins wall running if the checks are passed
@@ -267,12 +305,21 @@ bool UParkourMovementComponent::CheckWallRunFloor()
 
 	FindFloor(CharacterOwner->GetActorLocation(), FloorResult, false, HitResult);
 
+	if (HitResult != NULL)
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Floor Name: %s"), *HitResult->GetActor()->GetName());
+	}
+	
 	if (FloorResult.bWalkableFloor == false)
 	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Floor Not Found"));
+
 		return true;
 	}
 
-	if (FloorResult.FloorDist < 0.3)
+	UE_LOG(LogParkourMovement, Warning, TEXT("Floor Distance: %f"), FloorResult.FloorDist);
+
+	if (FloorResult.FloorDist < 0.7)
 	{
 		return false;
 	}
@@ -844,6 +891,55 @@ FVector UParkourMovementComponent::CalculateFloorInfluence(FVector FloorNormal)
 
 #pragma endregion
 
+#pragma region Zipline Functions
+
+bool UParkourMovementComponent::CheckCanZipline()
+{
+	UE_LOG(LogParkourMovement, Warning, TEXT("Zipline Checks"));
+
+	if (IsCustomMovementMode(ECustomMovementMode::CMOVE_Ziplining))
+	{
+		return false;
+	}
+
+	if (!IsFalling())
+	{
+		return false;
+	}
+
+	if (GetPawnOwner()->IsLocallyControlled())
+	{
+		WantsToZipline = true;
+	}
+
+	BeginZipline();
+
+	return true;
+}
+
+void UParkourMovementComponent::BeginZipline()
+{
+	if (!IsCustomMovementMode(ECustomMovementMode::CMOVE_Ziplining))
+	{
+		IsZiplining = true;
+	}
+
+	UE_LOG(LogParkourMovement, Warning, TEXT("Zipline Begin"));
+}
+
+void UParkourMovementComponent::EndZipline()
+{
+	WantsToZipline = false;
+	
+	IsZiplining = false;
+
+	MovementMode = EMovementMode::MOVE_Falling;
+
+	UE_LOG(LogParkourMovement, Warning, TEXT("Zipline End"));
+}
+
+#pragma endregion
+
 void UParkourMovementComponent::OnClientCorrectionReceived(class FNetworkPredictionData_Client_Character& ClientData, float TimeStamp, FVector NewLocation, FVector NewVelocity,
 	UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode) 
 {
@@ -894,6 +990,14 @@ void UParkourMovementComponent::PhysCustom(float deltaTime, int32 Iterations)
 		UE_LOG(LogParkourMovement, Warning, TEXT("Phys Sliding %i"), GetPawnOwner()->GetLocalRole());
 
 		PhysSlide(deltaTime, Iterations);
+
+		break;
+	}
+	case ECustomMovementMode::CMOVE_Ziplining:
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Phys Zipline"), GetPawnOwner()->GetLocalRole());
+
+		PhysZipline(deltaTime, Iterations);
 
 		break;
 	}
@@ -1234,6 +1338,51 @@ void UParkourMovementComponent::ApplySlideForce()
 	AddForce(FloorInfluenceForce);
 }
 
+void UParkourMovementComponent::PhysZipline(float DeltaTime, int32 Iterations)
+{
+	if (WantsToZipline == false)
+	{
+		EndZipline();
+		return;
+	}
+
+	
+	if (CheckWallRunFloor() == false)
+	{
+		EndZipline();
+		return;
+	}
+
+	FVector CharacterLocation = CharacterOwner->GetActorLocation();
+	FVector CharacterLocationDirection = ZiplineEnd - (CharacterLocation + 130);
+	CharacterLocationDirection.Normalize();
+
+	// end the zipline if the character has passed the zipline end point and is no longer moving towards the endpoint
+	if (FVector::DotProduct(CharacterLocationDirection, ZiplineDirection) < 0)
+	{
+		EndZipline();
+		return;
+	}
+
+	Velocity += (ZiplineDirection * ZiplineAcceleration);
+
+	UE_LOG(LogParkourMovement, Warning, TEXT("Zipline velocity: %s"), *Velocity.ToString());
+
+
+	
+	float Speed = Velocity.Size();
+
+	if (Speed > ZiplineMaxSpeed)
+	{
+		Velocity.Normalize();
+		Velocity = Velocity * Speed;
+	}
+
+	const FVector AdjustedVelocity = Velocity * DeltaTime;
+	FHitResult Hit(1.f);
+	SafeMoveUpdatedComponent(AdjustedVelocity, UpdatedComponent->GetComponentQuat(), true, Hit);
+}
+
 #pragma endregion
 
 void UParkourMovementComponent::SetMovementKey1Down(bool KeyIsDown)
@@ -1283,6 +1432,14 @@ bool UParkourMovementComponent::ServerSetWantsToVerticalWallRunRotate_Validate(c
 void UParkourMovementComponent::ServerSetWantsToVerticalWallRunRotate_Implementation(const bool WantsToRotate)
 {
 	WantsToVerticalWallRunRotate = WantsToRotate;
+}
+
+void UParkourMovementComponent::SetWantsToStopZipline(bool KeyIsDown)
+{
+	if (IsZiplining && KeyIsDown)
+	{
+		WantsToZipline = false;
+	}
 }
 
 bool UParkourMovementComponent::IsCustomMovementMode(uint8 custom_movement_mode) const
@@ -1345,6 +1502,7 @@ void FSavedMove_My::SetMoveFor(ACharacter* Character, float InDeltaTime, FVector
 		SavedMove1 = charMove->WantsToWallRun;
 		SavedMove2 = charMove->WantsToSlide;
 		SavedMove3 = charMove->WantsToVerticalWallRun;
+		SavedMove4 = charMove->WantsToZipline;
 
 		SavedWantsToCustomJump = charMove->WantsToCustomJump;
 		SavedWantsToVerticalWallRunRotate = charMove->WantsToVerticalWallRunRotate;
@@ -1363,6 +1521,7 @@ void FSavedMove_My::PrepMoveFor(class ACharacter* Character)
 		charMove->WantsToWallRun = SavedMove1;
 		charMove->WantsToSlide = SavedMove2;
 		charMove->WantsToVerticalWallRun = SavedMove3;
+		charMove->WantsToZipline = SavedMove4;
 
 		charMove->WantsToCustomJump = SavedWantsToCustomJump;
 		charMove->WantsToVerticalWallRunRotate = SavedWantsToVerticalWallRunRotate;

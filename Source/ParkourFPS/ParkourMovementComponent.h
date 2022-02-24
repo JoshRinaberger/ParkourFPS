@@ -31,6 +31,7 @@ private:
 	uint8 WantsToWallRun : 1;
 	uint8 WantsToSlide : 1;
 	uint8 WantsToVerticalWallRun : 1;
+	uint8 WantsToZipline : 1;
 	
 	uint8 WantsToCustomJump : 1;
 	uint8 WantsToVerticalWallRunRotate : 1;
@@ -111,6 +112,22 @@ private:
 	bool IsSliding = false;
 	bool IsCrouched = false;
 	
+	// ========================= ZIPLINE VARIABLES =======================================
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Zip line", Meta = (AllowPrivateAccess = "true"))
+	float ZiplineStartSpeed = 600.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Zip line", Meta = (AllowPrivateAccess = "true"))
+	float ZiplineAcceleration = 20.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Zip line", Meta = (AllowPrivateAccess = "true"))
+	float ZiplineMaxSpeed = 1200.f;
+
+	bool IsZiplining = false;
+
+	FVector ZiplineStart;
+	FVector ZiplineEnd;
+	FVector ZiplineDirection;
 	
 protected:
 	virtual void BeginPlay() override;
@@ -166,6 +183,13 @@ protected:
 
 	void ApplySlideForce();
 
+	// Zipline Functions
+
+	bool CheckCanZipline();
+	void BeginZipline();
+	void EndZipline();
+	void PhysZipline(float DeltaTime, int32 Iterations);
+
 public:
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	virtual void UpdateFromCompressedFlags(uint8 Flags) override;
@@ -195,6 +219,9 @@ public:
 
 	UFUNCTION(Unreliable, Server, WithValidation)
 	void ServerSetWantsToVerticalWallRunRotate(const bool WantsToRotate);
+
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	void SetWantsToStopZipline(bool KeyIsDown);
 
 
 
