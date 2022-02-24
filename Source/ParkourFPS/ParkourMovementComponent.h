@@ -31,10 +31,13 @@ private:
 	uint8 WantsToWallRun : 1;
 	uint8 WantsToSlide : 1;
 	uint8 WantsToVerticalWallRun : 1;
-	uint8 WantsToZipline : 1;
+	uint8 WantsToZiplineLadder : 1;
 	
 	uint8 WantsToCustomJump : 1;
 	uint8 WantsToVerticalWallRunRotate : 1;
+
+	uint8 WantsToClimbLadderUp : 1;
+	uint8 WantsToClimbLadderDown : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement", Meta = (AllowPrivateAccess = "true"))
 	bool DrawDebug = true;
@@ -128,6 +131,25 @@ private:
 	FVector ZiplineStart;
 	FVector ZiplineEnd;
 	FVector ZiplineDirection;
+
+	// ========================= LADDER VARIABLES =======================================
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Ladder", Meta = (AllowPrivateAccess = "true"))
+	float LadderSpeedUp = 600.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Ladder", Meta = (AllowPrivateAccess = "true"))
+	float LadderSpeedDown = 600.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Ladder", Meta = (AllowPrivateAccess = "true"))
+	float LadderJumpHeight = 400.0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Ladder", Meta = (AllowPrivateAccess = "true"))
+	float LadderJumpOffForce = 400.0;
+
+	bool IsClimbingLadder = false;
+
+	FVector LadderTop;
+	FVector LadderBottom;
 	
 protected:
 	virtual void BeginPlay() override;
@@ -138,9 +160,11 @@ protected:
 	float GetAngleBetweenVectors(FVector Vector1, FVector Vector2);
 	FVector GetDirectionOfSurface(FVector ImpactNormal);
 
+	void DoCustomJump();
+
 	// Wall Running Functions
 	bool CheckCanWallRun(const FHitResult Hit);
-	bool CheckWallRunFloor();
+	bool CheckWallRunFloor(float Distance);
 	bool CheckWallRunTraces();
 	FVector GetWallRunEndVectorL();
 	FVector GetWallRunEndVectorR();
@@ -152,7 +176,6 @@ protected:
 	bool IsNextToWall(float vertical_tolerance = 0.0f);
 	bool CanSurfaceBeWallRan(const FVector& surface_normal) const;
 	int FindWallRunSide(const FVector& surface_normal);
-	void WallRunJump();
 
 	UFUNCTION()
 	void OnActorHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit);
@@ -190,6 +213,12 @@ protected:
 	void EndZipline();
 	void PhysZipline(float DeltaTime, int32 Iterations);
 
+	// Ladder Functions
+	bool CheckCanClimbLadder();
+	void BeginClimbLadder();
+	void EndClimbLadder();
+	void PhysClimbLadder(float DeltaTime, int32 Iterations);
+
 public:
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	virtual void UpdateFromCompressedFlags(uint8 Flags) override;
@@ -214,6 +243,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	void SetWantsToCustomJump(bool KeyIsDown);
 
+	UFUNCTION(Unreliable, Server, WithValidation)
+	void ServerSetWantsToCustomJump(const bool WantsToJump);
+
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	void SetWantsToVerticalWallRunRotate(bool KeyIsDown);
 
@@ -222,6 +254,18 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	void SetWantsToStopZipline(bool KeyIsDown);
+
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	void SetWantsToGoUpLadder(bool KeyIsDown);
+
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	void SetWantsToGoDownLadder(bool KeyIsDown);
+
+	UFUNCTION(Unreliable, Server, WithValidation)
+	void ServerSetWantsToGoUpLadder(const bool WantsToGoUp);
+
+	UFUNCTION(Unreliable, Server, WithValidation)
+	void ServerSetWantsToGoDownLadder(const bool WantsToGoDown);
 
 
 
@@ -258,6 +302,9 @@ private:
 
 	uint8 SavedWantsToCustomJump : 1;
 	uint8 SavedWantsToVerticalWallRunRotate : 1;
+
+	uint8 SavedWantsToClimbLadderUp : 1;
+	uint8 SavedWantsToClimbLadderDown : 1;
 };
 
 class FNetworkPredictionData_Client_My : public FNetworkPredictionData_Client_Character
@@ -283,5 +330,6 @@ enum ECustomMovementMode
 	CMOVE_Sliding		UMETA(DisplayName = "Sliding"),
 	CMOVE_Ziplining		UMETA(DisplayName = "Ziplining"),
 	CMOVE_Vaulting		UMETA(DisplayName = "Vaulting"),
+	CMOVE_ClimbLadder		UMETA(DisplayName = "ClimbLadder"),
 	CMOVE_MAX			UMETA(Hidden),
 };

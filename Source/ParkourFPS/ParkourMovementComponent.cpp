@@ -10,6 +10,7 @@
 #include "ParkourFPSCharacter.h"
 #include "DrawDebugHelpers.h"
 #include "Zipline.h"
+#include "Ladder.h"
 
 DEFINE_LOG_CATEGORY(LogMovementCorrections);
 DEFINE_LOG_CATEGORY(LogParkourMovement);
@@ -78,7 +79,7 @@ void UParkourMovementComponent::UpdateFromCompressedFlags(uint8 Flags)
 	WantsToWallRun = (Flags & FSavedMove_Character::FLAG_Custom_0) != 0;
 	WantsToSlide = (Flags & FSavedMove_Character::FLAG_Custom_1) != 0;
 	WantsToVerticalWallRun = (Flags & FSavedMove_Character::FLAG_Custom_2) != 0;
-	WantsToZipline = (Flags & FSavedMove_Character::FLAG_Custom_3) != 0;
+	WantsToZiplineLadder = (Flags & FSavedMove_Character::FLAG_Custom_3) != 0;
 }
 
 void UParkourMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSeconds)
@@ -98,9 +99,14 @@ void UParkourMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSe
 		BeginSlide();
 	}
 
-	if (WantsToZipline && IsZiplining)
+	if (WantsToZiplineLadder && IsZiplining)
 	{
 		SetMovementMode(EMovementMode::MOVE_Custom, ECustomMovementMode::CMOVE_Ziplining);
+	}
+
+	if (WantsToZiplineLadder && IsClimbingLadder)
+	{
+		SetMovementMode(EMovementMode::MOVE_Custom, ECustomMovementMode::CMOVE_ClimbLadder);
 	}
 
 	Super::UpdateCharacterStateBeforeMovement(DeltaSeconds);
@@ -157,10 +163,24 @@ void UParkourMovementComponent::OnMovementUpdated(float DeltaSeconds, const FVec
 
 	if (PawnOwner->GetLocalRole() == ROLE_AutonomousProxy)
 	{
-		ServerSetWantsToVerticalWallRunRotate(WantsToVerticalWallRunRotate);
+		if (MovementMode == EMovementMode::MOVE_Custom)
+		{
+			ServerSetWantsToCustomJump(WantsToCustomJump);
+		}
+
+		if (IsVerticalWallRunning)
+		{
+			ServerSetWantsToVerticalWallRunRotate(WantsToVerticalWallRunRotate);
+		}
+		
+		if (IsClimbingLadder)
+		{
+			ServerSetWantsToGoUpLadder(WantsToClimbLadderUp);
+			ServerSetWantsToGoDownLadder(WantsToClimbLadderDown);
+		}
 	}
 
-	WallRunJump();
+	DoCustomJump();
 
 	ApplySlideForce();
 
@@ -182,14 +202,16 @@ void UParkourMovementComponent::OnActorHit(AActor* SelfActor, AActor* OtherActor
 		return;
 	}
 
+	if (IsWallRunning || IsVerticalWallRunning || IsZiplining || IsClimbingLadder)
+	{
+		return;
+	}
+
 	if (IsValid(OtherActor))
 	{
-		UE_LOG(LogParkourMovement, Warning, TEXT("Zipline IsValid"));
 
 		if (OtherActor->IsA(AZipline::StaticClass()))
 		{
-			UE_LOG(LogParkourMovement, Warning, TEXT("Zipline IsA"));
-
 			bool CanZipline = CheckCanZipline();
 
 			if (CanZipline)
@@ -201,9 +223,17 @@ void UParkourMovementComponent::OnActorHit(AActor* SelfActor, AActor* OtherActor
 
 			return;
 		}
-		else
+		else if (OtherActor->IsA(ALadder::StaticClass()))
 		{
-			UE_LOG(LogParkourMovement, Warning, TEXT("ACTOR HIT %s"), *OtherActor->GetName());
+			bool CanClimbLadder = CheckCanClimbLadder();
+
+			if (CanClimbLadder)
+			{
+				LadderTop = static_cast<ALadder*>(OtherActor)->TopPoint;
+				LadderBottom = static_cast<ALadder*>(OtherActor)->BottomPoint;
+			}
+
+			return;
 		}
 	}
 
@@ -295,7 +325,7 @@ bool UParkourMovementComponent::CheckCanWallRun(const FHitResult Hit)
 	return true;
 }
 
-bool UParkourMovementComponent::CheckWallRunFloor()
+bool UParkourMovementComponent::CheckWallRunFloor(float Distance)
 {
 	//looks to see if the player is on the floor while wall running and returns false if the player is currently standing on a floor,
 	//as the wall run should end when the player hits the floor
@@ -319,7 +349,7 @@ bool UParkourMovementComponent::CheckWallRunFloor()
 
 	UE_LOG(LogParkourMovement, Warning, TEXT("Floor Distance: %f"), FloorResult.FloorDist);
 
-	if (FloorResult.FloorDist < 0.7)
+	if (FloorResult.FloorDist < Distance)
 	{
 		return false;
 	}
@@ -590,10 +620,12 @@ void UParkourMovementComponent::EndWallRun()
 	IsWallRunningR = false;
 }
 
-void UParkourMovementComponent::WallRunJump()
+void UParkourMovementComponent::DoCustomJump()
 {
 	if (WantsToCustomJump)
 	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Custom Jump %i"), GetPawnOwner()->GetLocalRole());
+
 		if (IsWallRunning)
 		{
 			EndWallRun();
@@ -620,31 +652,25 @@ void UParkourMovementComponent::WallRunJump()
 				LaunchVelocity.Y = LaunchVelocity.Y * -1.f;
 			}
 
-			UE_LOG(LogParkourMovement, Warning, TEXT("====== Jump %i ======="), GetPawnOwner()->GetLocalRole());
-
-			if (IsVerticalWallRunning)
-				UE_LOG(LogParkourMovement, Warning, TEXT("Jump Is Vertical Wall Running"));
-
-			if (IsRotatingAwayFromWall)
-				UE_LOG(LogParkourMovement, Warning, TEXT("Jump Is Vertical Wall Rotating"));
-
-			if (IsFacingTowardsWall)
-				UE_LOG(LogParkourMovement, Warning, TEXT("Jump Is Facing Wall"));
-
 			EndVerticalWallRun();
-
-			if (IsVerticalWallRunning)
-				UE_LOG(LogParkourMovement, Warning, TEXT("Jump Is Vertical Wall Running"));
-
-			if (IsRotatingAwayFromWall)
-				UE_LOG(LogParkourMovement, Warning, TEXT("Jump Is Vertical Wall Rotating"));
-
-			if (IsFacingTowardsWall)
-				UE_LOG(LogParkourMovement, Warning, TEXT("Jump Is Facing Wall"));
 
 			Launch(LaunchVelocity);
 
 			UE_LOG(LogParkourMovement, Warning, TEXT("Wall Run Jump Velocity: %s"), *LaunchVelocity.ToString());
+		}
+		else if (IsClimbingLadder)
+		{
+			FVector LaunchVelocity;
+			
+			LaunchVelocity.X = LadderJumpOffForce * (CharacterOwner->GetActorForwardVector().X) * -1.f;
+			LaunchVelocity.Y = LadderJumpOffForce * (CharacterOwner->GetActorForwardVector().Y) * -1.f;
+			LaunchVelocity.Z = LadderJumpHeight;
+
+			EndClimbLadder();
+
+			Launch(LaunchVelocity);
+
+			UE_LOG(LogParkourMovement, Warning, TEXT("Ladder Jump Velocity %s %i"), *LaunchVelocity.ToString(), GetPawnOwner()->GetLocalRole());
 		}
 	}
 }
@@ -909,7 +935,7 @@ bool UParkourMovementComponent::CheckCanZipline()
 
 	if (GetPawnOwner()->IsLocallyControlled())
 	{
-		WantsToZipline = true;
+		WantsToZiplineLadder = true;
 	}
 
 	BeginZipline();
@@ -929,13 +955,55 @@ void UParkourMovementComponent::BeginZipline()
 
 void UParkourMovementComponent::EndZipline()
 {
-	WantsToZipline = false;
+	WantsToZiplineLadder = false;
 	
 	IsZiplining = false;
 
 	MovementMode = EMovementMode::MOVE_Falling;
 
 	UE_LOG(LogParkourMovement, Warning, TEXT("Zipline End"));
+}
+
+#pragma endregion
+
+#pragma region Ladder Functions
+
+bool UParkourMovementComponent::CheckCanClimbLadder()
+{
+	if (IsCustomMovementMode(ECustomMovementMode::CMOVE_ClimbLadder))
+	{
+		return false;
+	}
+
+	if (GetPawnOwner()->IsLocallyControlled())
+	{
+		WantsToZiplineLadder = true;
+	}
+
+	BeginClimbLadder();
+
+	return true;
+}
+
+void UParkourMovementComponent::BeginClimbLadder()
+{
+	if (!IsCustomMovementMode(ECustomMovementMode::CMOVE_ClimbLadder))
+	{
+		IsClimbingLadder = true;
+	}
+
+	UE_LOG(LogParkourMovement, Warning, TEXT("Climb Ladder Begin %i"), GetPawnOwner()->GetLocalRole());
+}
+
+void UParkourMovementComponent::EndClimbLadder()
+{
+	WantsToZiplineLadder = false;
+
+	IsClimbingLadder = false;
+
+	SetMovementMode(EMovementMode::MOVE_Falling);
+
+	UE_LOG(LogParkourMovement, Warning, TEXT("Climb Ladder End %i"), GetPawnOwner()->GetLocalRole());
 }
 
 #pragma endregion
@@ -995,9 +1063,17 @@ void UParkourMovementComponent::PhysCustom(float deltaTime, int32 Iterations)
 	}
 	case ECustomMovementMode::CMOVE_Ziplining:
 	{
-		UE_LOG(LogParkourMovement, Warning, TEXT("Phys Zipline"), GetPawnOwner()->GetLocalRole());
+		UE_LOG(LogParkourMovement, Warning, TEXT("Phys Zipline %i"), GetPawnOwner()->GetLocalRole());
 
 		PhysZipline(deltaTime, Iterations);
+
+		break;
+	}
+	case ECustomMovementMode::CMOVE_ClimbLadder:
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Phys Climb Ladder %i"), GetPawnOwner()->GetLocalRole());
+
+		PhysClimbLadder(deltaTime, Iterations);
 
 		break;
 	}
@@ -1024,7 +1100,7 @@ void UParkourMovementComponent::PhysWallRun(float deltaTime, int32 Iterations)
 	}
 
 	// End the wall run if the player has hit the floor
-	if (CheckWallRunFloor() == false)
+	if (CheckWallRunFloor(0.7) == false)
 	{
 		EndWallRun();
 		return;
@@ -1340,14 +1416,14 @@ void UParkourMovementComponent::ApplySlideForce()
 
 void UParkourMovementComponent::PhysZipline(float DeltaTime, int32 Iterations)
 {
-	if (WantsToZipline == false)
+	if (WantsToZiplineLadder == false)
 	{
 		EndZipline();
 		return;
 	}
 
 	
-	if (CheckWallRunFloor() == false)
+	if (CheckWallRunFloor(0.7) == false)
 	{
 		EndZipline();
 		return;
@@ -1367,8 +1443,6 @@ void UParkourMovementComponent::PhysZipline(float DeltaTime, int32 Iterations)
 	Velocity += (ZiplineDirection * ZiplineAcceleration);
 
 	UE_LOG(LogParkourMovement, Warning, TEXT("Zipline velocity: %s"), *Velocity.ToString());
-
-
 	
 	float Speed = Velocity.Size();
 
@@ -1376,6 +1450,70 @@ void UParkourMovementComponent::PhysZipline(float DeltaTime, int32 Iterations)
 	{
 		Velocity.Normalize();
 		Velocity = Velocity * Speed;
+	}
+
+	const FVector AdjustedVelocity = Velocity * DeltaTime;
+	FHitResult Hit(1.f);
+	SafeMoveUpdatedComponent(AdjustedVelocity, UpdatedComponent->GetComponentQuat(), true, Hit);
+}
+
+void UParkourMovementComponent::PhysClimbLadder(float DeltaTime, int32 Iterations)
+{
+	if (!WantsToZiplineLadder)
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Climb Ladder Ended By WantsToZiplineLadder false"));
+
+		EndClimbLadder();
+		return;
+	}
+
+	if (CheckWallRunFloor(1.4) == false && WantsToClimbLadderDown)
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Climb Ladder Ended By Floor"));
+
+		EndClimbLadder();
+		return;
+	}
+
+	// End climbing if character has reached top of the ladder
+	float CharacterFeetHeight = CharacterOwner->GetActorLocation().Z;
+	CharacterFeetHeight -= CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+
+	UE_LOG(LogParkourMovement, Warning, TEXT("Ladder Climb - Character Feet Height: %f, Ladder Top = %f"), CharacterFeetHeight, LadderTop.Z);
+
+	if (CharacterFeetHeight >= LadderTop.Z)
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Climb Ladder Ended By Passing Top"));
+
+		EndClimbLadder();
+		return;
+	}
+
+	// End climbing if character has reached bottom of ladder
+	float CharacterHeadHeight = CharacterOwner->GetActorLocation().Z;
+	CharacterHeadHeight += CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+
+	UE_LOG(LogParkourMovement, Warning, TEXT("Ladder Climb - Character Head Height: %f, Ladder Bottom = %f"), CharacterHeadHeight, LadderBottom.Z);
+
+	if (CharacterHeadHeight <= LadderBottom.Z)
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Climb Ladder Ended By Passing Bottom"));
+
+		EndClimbLadder();
+		return;
+	}
+
+	if (WantsToClimbLadderUp && !WantsToClimbLadderDown)
+	{
+		Velocity = FVector(0, 0, LadderSpeedUp);
+	}
+	else if (!WantsToClimbLadderUp && WantsToClimbLadderDown)
+	{
+		Velocity = FVector(0, 0, LadderSpeedDown * -1);
+	}
+	else
+	{
+		Velocity = FVector(0, 0, 0);
 	}
 
 	const FVector AdjustedVelocity = Velocity * DeltaTime;
@@ -1412,6 +1550,16 @@ void UParkourMovementComponent::SetWantsToCustomJump(bool keyIsDown)
 	}
 }
 
+bool UParkourMovementComponent::ServerSetWantsToCustomJump_Validate(const bool WantsToJump)
+{
+	return true;
+}
+
+void UParkourMovementComponent::ServerSetWantsToCustomJump_Implementation(const bool WantsToJump)
+{
+	WantsToCustomJump = WantsToJump;
+}
+
 void UParkourMovementComponent::SetWantsToVerticalWallRunRotate(bool KeyIsDown)
 {
 	if (IsCustomMovementMode(ECustomMovementMode::CMOVE_VerticalWallRunning))
@@ -1438,8 +1586,38 @@ void UParkourMovementComponent::SetWantsToStopZipline(bool KeyIsDown)
 {
 	if (IsZiplining && KeyIsDown)
 	{
-		WantsToZipline = false;
+		WantsToZiplineLadder = false;
 	}
+}
+
+void UParkourMovementComponent::SetWantsToGoUpLadder(bool KeyIsDown)
+{
+	WantsToClimbLadderUp = KeyIsDown;
+}
+
+void UParkourMovementComponent::SetWantsToGoDownLadder(bool KeyIsDown)
+{
+	WantsToClimbLadderDown = KeyIsDown;
+}
+
+bool UParkourMovementComponent::ServerSetWantsToGoUpLadder_Validate(const bool WantsToGoUp)
+{
+	return true;
+}
+
+void UParkourMovementComponent::ServerSetWantsToGoUpLadder_Implementation(const bool WantsToGoUp)
+{
+	WantsToClimbLadderUp = WantsToGoUp;
+}
+
+bool UParkourMovementComponent::ServerSetWantsToGoDownLadder_Validate(const bool WantsToGoDown)
+{
+	return true;
+}
+
+void UParkourMovementComponent::ServerSetWantsToGoDownLadder_Implementation(const bool WantsToGoDown)
+{
+	WantsToClimbLadderDown = WantsToGoDown;
 }
 
 bool UParkourMovementComponent::IsCustomMovementMode(uint8 custom_movement_mode) const
@@ -1502,10 +1680,13 @@ void FSavedMove_My::SetMoveFor(ACharacter* Character, float InDeltaTime, FVector
 		SavedMove1 = charMove->WantsToWallRun;
 		SavedMove2 = charMove->WantsToSlide;
 		SavedMove3 = charMove->WantsToVerticalWallRun;
-		SavedMove4 = charMove->WantsToZipline;
+		SavedMove4 = charMove->WantsToZiplineLadder;
 
 		SavedWantsToCustomJump = charMove->WantsToCustomJump;
 		SavedWantsToVerticalWallRunRotate = charMove->WantsToVerticalWallRunRotate;
+
+		SavedWantsToClimbLadderUp = charMove->WantsToClimbLadderUp;
+		SavedWantsToClimbLadderDown = charMove->WantsToClimbLadderDown;
 	}
 }
 
@@ -1521,10 +1702,13 @@ void FSavedMove_My::PrepMoveFor(class ACharacter* Character)
 		charMove->WantsToWallRun = SavedMove1;
 		charMove->WantsToSlide = SavedMove2;
 		charMove->WantsToVerticalWallRun = SavedMove3;
-		charMove->WantsToZipline = SavedMove4;
+		charMove->WantsToZiplineLadder = SavedMove4;
 
 		charMove->WantsToCustomJump = SavedWantsToCustomJump;
 		charMove->WantsToVerticalWallRunRotate = SavedWantsToVerticalWallRunRotate;
+
+		charMove->WantsToClimbLadderUp = SavedWantsToClimbLadderUp;
+		charMove->WantsToClimbLadderDown = SavedWantsToClimbLadderDown;
 	}
 }
 
