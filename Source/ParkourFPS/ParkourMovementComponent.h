@@ -150,6 +150,10 @@ private:
 
 	FVector LadderTop;
 	FVector LadderBottom;
+
+	// ====================== Climbing Variables =================================
+
+	
 	
 protected:
 	virtual void BeginPlay() override;
@@ -218,6 +222,13 @@ protected:
 	void BeginClimbLadder();
 	void EndClimbLadder();
 	void PhysClimbLadder(float DeltaTime, int32 Iterations);
+
+	// Climbing Functions
+	ELedgeState GetStateOfLedge();
+	bool CheckCanHangLedge();
+	bool CheckCanClimb();
+	bool CheckCanClimbToHit();
+
 
 public:
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
@@ -332,4 +343,15 @@ enum ECustomMovementMode
 	CMOVE_Vaulting		UMETA(DisplayName = "Vaulting"),
 	CMOVE_ClimbLadder		UMETA(DisplayName = "ClimbLadder"),
 	CMOVE_MAX			UMETA(Hidden),
+};
+
+UENUM(BlueprintType)
+enum class ELedgeState : uint8
+{
+	STATE_None UMETA(DisplayName = "None"),
+	STATE_Grabbable UMETA(DisplayName = "Grabbable"),
+	STATE_Climbable UMETA(DisplayName = "Climbable"),
+	STATE_QuickClimbable UMETA(DisplayName = "QuickClimbable"),
+	STATE_Vaultable UMETA(DisplayName = "Vaultable"),
+
 };

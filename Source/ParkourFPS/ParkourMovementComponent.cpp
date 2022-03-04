@@ -196,6 +196,17 @@ void UParkourMovementComponent::OnActorHit(AActor* SelfActor, AActor* OtherActor
 		return;
 	}
 
+	bool LedgeHang = CheckCanHangLedge();
+
+	if (LedgeHang)
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Actor Hit Ledge Grab TRUE"));
+	}
+	else
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Actor Hit Ledge Grab FALSE"));
+	}
+
 	// return if a custom move is already being performed
 	if (MovementMode == EMovementMode::MOVE_Custom)
 	{
@@ -1004,6 +1015,101 @@ void UParkourMovementComponent::EndClimbLadder()
 	SetMovementMode(EMovementMode::MOVE_Falling);
 
 	UE_LOG(LogParkourMovement, Warning, TEXT("Climb Ladder End %i"), GetPawnOwner()->GetLocalRole());
+}
+
+#pragma endregion
+
+#pragma region Climbing Functions
+
+ELedgeState UParkourMovementComponent::GetStateOfLedge()
+{
+	ELedgeState LedgeState = ELedgeState::STATE_None;
+
+	if (CheckCanHangLedge())
+	{
+		LedgeState = ELedgeState::STATE_Grabbable;
+	}
+
+	return LedgeState;
+}
+
+bool UParkourMovementComponent::CheckCanHangLedge()
+{
+	FVector TraceStart = CharacterOwner->GetActorLocation() + (CharacterOwner->GetActorForwardVector() * 70.0);
+	TraceStart.Z += CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+
+	FVector TraceEnd = CharacterOwner->GetActorLocation() + (CharacterOwner->GetActorForwardVector() * 70.0);
+
+	FHitResult HitLow;
+	FCollisionQueryParams TraceParams;
+	TraceParams.AddIgnoredActor(CharacterOwner);
+
+	bool SurfaceFoundLow = GetWorld()->LineTraceSingleByChannel(HitLow, TraceStart, TraceEnd, ECC_Visibility, TraceParams);
+
+	if (SurfaceFoundLow)
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("LEDGE HANG LOW HIT"));
+	}
+	else
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("LEDGE HANG LOW NOT HIT"));
+	}
+
+	if (DrawDebug)
+	{
+		DrawDebugLine(GetWorld(), TraceStart, TraceEnd, FColor::Magenta, true, 1, 0, 2);
+	}
+
+	if (HitLow.bBlockingHit == false)
+	{
+		return false;
+	}
+
+	TraceEnd = HitLow.ImpactPoint;
+	TraceEnd.Z += 1;
+	FHitResult HitHi;
+
+	bool SurfaceFoundHigh = GetWorld()->LineTraceSingleByChannel(HitHi, TraceStart, TraceEnd, ECC_Visibility, TraceParams);
+
+	if (DrawDebug)
+	{
+		DrawDebugLine(GetWorld(), TraceStart, TraceEnd, FColor::Red, true, 1, 0, 2);
+	}
+
+	if (SurfaceFoundHigh)
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("LEDGE HANG HIGH HIT"));
+	}
+	else
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("LEDGE HANG HIGH NOT HIT"));
+	}
+
+	if (HitHi.bBlockingHit)
+	{
+		return false;
+	}
+
+	if (HitLow.Normal.Z < GetWalkableFloorZ())
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool UParkourMovementComponent::CheckCanClimb()
+{
+
+
+	return true;
+}
+
+bool UParkourMovementComponent::CheckCanClimbToHit()
+{
+
+
+	return true;
 }
 
 #pragma endregion
