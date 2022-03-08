@@ -207,6 +207,17 @@ void UParkourMovementComponent::OnActorHit(AActor* SelfActor, AActor* OtherActor
 		UE_LOG(LogParkourMovement, Warning, TEXT("Actor Hit Ledge Grab FALSE"));
 	}
 
+	bool LedgeClimb = CheckCanClimb();
+
+	if (LedgeClimb)
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Actor Hit Ledge Climb TRUE"));
+	}
+	else
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Actor Hit Ledge Climb FALSE"));
+	}
+
 	// return if a custom move is already being performed
 	if (MovementMode == EMovementMode::MOVE_Custom)
 	{
@@ -1100,14 +1111,94 @@ bool UParkourMovementComponent::CheckCanHangLedge()
 
 bool UParkourMovementComponent::CheckCanClimb()
 {
+	FVector TraceStart = CharacterOwner->GetActorLocation() + (CharacterOwner->GetActorForwardVector() * 70.0);
+	TraceStart.Z += CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 
+	FVector TraceEnd = CharacterOwner->GetActorLocation() + (CharacterOwner->GetActorForwardVector() * 70.0);
+	TraceEnd.Z -= CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+
+	FHitResult Hit;
+	FCollisionQueryParams TraceParams;
+	TraceParams.AddIgnoredActor(CharacterOwner);
+
+	bool SurfaceFound = GetWorld()->LineTraceSingleByChannel(Hit, TraceStart, TraceEnd, ECC_Visibility, TraceParams);
+
+	if (DrawDebug)
+	{
+		DrawDebugLine(GetWorld(), TraceStart, TraceEnd, FColor::Blue, true, 1, 0, 2);
+	}
+
+	if (SurfaceFound == false)
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Check Can Climb Failed No Surface"));
+
+		return false;
+	}
+	else
+	{
+		if (CheckCanClimbToHit(Hit) == false)
+		{
+			UE_LOG(LogParkourMovement, Warning, TEXT("Check Can Climb Failed Can't Climb To Hit"));
+
+			return false;
+		}
+	}
+
+	UE_LOG(LogParkourMovement, Warning, TEXT("Check Can Climb Passed"));
 
 	return true;
 }
 
-bool UParkourMovementComponent::CheckCanClimbToHit()
+bool UParkourMovementComponent::CheckCanClimbToHit(FHitResult Hit)
 {
+	// Make sure that the surface is at an appropriate height
+	float SurfaceHeight = Hit.Location.Z - Hit.TraceEnd.Z;
 
+	if (SurfaceHeight < MinClimbHeight || SurfaceHeight > MaxClimbHeight)
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Climb not at correct height"));
+
+		return false;
+	}
+
+	// Make sure the surface thats being vaulted to is at a walkable angle
+	if (Hit.Normal.Z < GetWalkableFloorZ())
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("CLIMB SURFACE IS NOT WALKABLE"));
+
+		return false;
+	}
+
+	float CapsuleHalfHeight = CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+
+	// Make sure that there is nothing above the surface that blocks the player from getting onto the surface
+	FVector EndLocation = Hit.Location;
+	EndLocation.Z += CapsuleHalfHeight +  1;
+	//EndLocation.Z += CapsuleHalfHeight;
+	//EndLocation.Z += CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleRadius();
+
+	FHitResult ClearHit;
+	FCollisionQueryParams TraceParams;
+	TraceParams.AddIgnoredActor(CharacterOwner);
+
+	bool ActorHit = GetWorld()->SweepSingleByChannel(ClearHit, EndLocation, EndLocation, FQuat::Identity, ECC_Visibility,
+	FCollisionShape::MakeCapsule(CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleRadius(), CapsuleHalfHeight), TraceParams);
+
+	if (DrawDebug)
+	{
+		FVector DebugCapsuleCenter = Hit.Location;
+		DebugCapsuleCenter.Z += CapsuleHalfHeight + 1;
+
+		DrawDebugCapsule(GetWorld(), DebugCapsuleCenter, CapsuleHalfHeight, CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleRadius(), FQuat::Identity, FColor::Cyan, true, 1, 0, 2);
+	}
+
+	if (ActorHit)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CLIMB SURFACE NOT CLEAR"));
+		UE_LOG(LogTemp, Warning, TEXT("Climb Clear Actor Hit: %s"), *ClearHit.GetActor()->GetName());
+
+		return false;
+	}
 
 	return true;
 }

@@ -153,8 +153,12 @@ private:
 
 	// ====================== Climbing Variables =================================
 
-	
-	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Climbing", Meta = (AllowPrivateAccess = "true"))
+	float MinClimbHeight = 50.0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Climbing", Meta = (AllowPrivateAccess = "true"))
+	float MaxClimbHeight = 170.0;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
@@ -227,7 +231,7 @@ protected:
 	ELedgeState GetStateOfLedge();
 	bool CheckCanHangLedge();
 	bool CheckCanClimb();
-	bool CheckCanClimbToHit();
+	bool CheckCanClimbToHit(FHitResult Hit);
 
 
 public:
