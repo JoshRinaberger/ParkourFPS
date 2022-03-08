@@ -223,6 +223,17 @@ void UParkourMovementComponent::OnActorHit(AActor* SelfActor, AActor* OtherActor
 	if (LedgeQuickClimb)
 	{
 		UE_LOG(LogParkourMovement, Warning, TEXT("Actor Hit Ledge Quick Climb TRUE"));
+
+		bool LedgeVault = CheckCanVault();
+
+		if (LedgeVault)
+		{
+			UE_LOG(LogParkourMovement, Warning, TEXT("Actor Hit Ledge Vault TRUE"));
+		}
+		else
+		{
+			UE_LOG(LogParkourMovement, Warning, TEXT("Actor Hit Ledge Vault FALSE"));
+		}
 	}
 	else
 	{
@@ -1061,6 +1072,7 @@ bool UParkourMovementComponent::CheckCanHangLedge()
 	TraceStart.Z += CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 
 	FVector TraceEnd = CharacterOwner->GetActorLocation() + (CharacterOwner->GetActorForwardVector() * 70.0);
+	TraceEnd.Z -= CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 
 	FHitResult HitLow;
 	FCollisionQueryParams TraceParams;
@@ -1084,6 +1096,16 @@ bool UParkourMovementComponent::CheckCanHangLedge()
 
 	if (HitLow.bBlockingHit == false)
 	{
+		return false;
+	}
+
+	// Make sure that the surface is at an appropriate height
+	float SurfaceHeight = HitLow.Location.Z - HitLow.TraceEnd.Z;
+
+	if (SurfaceHeight < MinClimbHeight || SurfaceHeight > MaxClimbHeight)
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("LEDGE HANG HEIGHT FAILED"));
+
 		return false;
 	}
 
@@ -1173,7 +1195,7 @@ bool UParkourMovementComponent::CheckCanClimb()
 
 bool UParkourMovementComponent::CheckCanClimbToHit(FHitResult Hit)
 {
-	// Make sure the surface thats being vaulted to is at a walkable angle
+	// Make sure the surface thats being climbed to is at a walkable angle
 	if (Hit.Normal.Z < GetWalkableFloorZ())
 	{
 		UE_LOG(LogParkourMovement, Warning, TEXT("CLIMB SURFACE IS NOT WALKABLE"));
@@ -1271,7 +1293,48 @@ bool UParkourMovementComponent::CheckCanQuickClimb()
 
 bool UParkourMovementComponent::CheckCanVault()
 {
+	float CapsuleRadius = CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleRadius();
+
+	FVector TraceStart = CharacterOwner->GetActorLocation() + (CharacterOwner->GetActorForwardVector() * (CapsuleRadius + MaxQuickClimbWallWidth + 10));
+	TraceStart.Z += CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * 3;
+
+	FVector TraceEnd = CharacterOwner->GetActorLocation() + (CharacterOwner->GetActorForwardVector() * (CapsuleRadius + MaxQuickClimbWallWidth + 10));
+	TraceEnd.Z -= CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+
+	FHitResult Hit;
+	FCollisionQueryParams TraceParams;
+	TraceParams.AddIgnoredActor(CharacterOwner);
+
+	bool SurfaceFound = GetWorld()->LineTraceSingleByChannel(Hit, TraceStart, TraceEnd, ECC_Visibility, TraceParams);
+
+	if (DrawDebug)
+	{
+		DrawDebugLine(GetWorld(), TraceStart, TraceEnd, FColor::Orange, true, 1, 0, 2);
+	}
+
+	if (SurfaceFound)
+	{
+		return false;
+	}
+
 	return true;
+}
+
+void UParkourMovementComponent::BeginLedgeHang()
+{
+	UE_LOG(LogParkourMovement, Warning, TEXT("Begin Ledge Hang %i"), PawnOwner->GetLocalRole());
+
+	if (IsCustomMovementMode(ECustomMovementMode::CMOVE_LedgeHang))
+	{
+		return;
+	}
+
+	SetMovementMode(EMovementMode::MOVE_Custom, ECustomMovementMode::CMOVE_LedgeHang);
+}
+
+void UParkourMovementComponent::EndLedgeHang()
+{
+	SetMovementMode(EMovementMode::MOVE_Falling);
 }
 
 #pragma endregion
@@ -1433,6 +1496,12 @@ void UParkourMovementComponent::PhysVerticalWallRun(float deltaTime, int32 Itera
 		EndVerticalWallRun();
 
 		UE_LOG(LogParkourMovement, Warning, TEXT("Vertical wall run ended by wants to vertical wall run false"));
+	}
+
+	if (CheckCanHangLedge())
+	{
+		EndVerticalWallRun();
+		BeginLedgeHang();
 	}
 
 	float CurrentSpeed = Velocity.Size();

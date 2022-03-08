@@ -154,19 +154,25 @@ private:
 	// ====================== Climbing Variables =================================
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Climbing", Meta = (AllowPrivateAccess = "true"))
+	float MinLedgeHangHeight = 120.0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Climbing", Meta = (AllowPrivateAccess = "true"))
+	float MaxLedgeHangHeight = 170.0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Climbing", Meta = (AllowPrivateAccess = "true"))
 	float MinClimbHeight = 100.0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Climbing", Meta = (AllowPrivateAccess = "true"))
 	float MaxClimbHeight = 170.0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Climbing", Meta = (AllowPrivateAccess = "true"))
-		float MinQuickClimbHeight = 50.0;
+	float MinQuickClimbHeight = 50.0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Climbing", Meta = (AllowPrivateAccess = "true"))
-		float MaxQuickClimbHeight = 100.0;
+	float MaxQuickClimbHeight = 100.0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Climbing", Meta = (AllowPrivateAccess = "true"))
-	float MaxWallWidth = 100.0;
+	float MaxQuickClimbWallWidth = 100.0;
 
 protected:
 	virtual void BeginPlay() override;
@@ -243,6 +249,9 @@ protected:
 	bool CheckCanClimbToHit(FHitResult Hit);
 	bool CheckCanQuickClimb();
 	bool CheckCanVault();
+
+	void BeginLedgeHang();
+	void EndLedgeHang();
 
 
 public:
@@ -352,7 +361,7 @@ enum ECustomMovementMode
 {
 	CMOVE_WallRunning   UMETA(DisplayName = "WallRunning"),
 	CMOVE_VerticalWallRunning   UMETA(DisplayName = "WallRunning"),
-	CMOVE_WallHang UMETA(DisplayName = "WallHang"),
+	CMOVE_LedgeHang UMETA(DisplayName = "LedgeHang"),
 	CMOVE_Sliding		UMETA(DisplayName = "Sliding"),
 	CMOVE_Ziplining		UMETA(DisplayName = "Ziplining"),
 	CMOVE_Vaulting		UMETA(DisplayName = "Vaulting"),
