@@ -178,6 +178,10 @@ void UParkourMovementComponent::OnMovementUpdated(float DeltaSeconds, const FVec
 			ServerSetWantsToGoUpLadder(WantsToClimbLadderUp);
 			ServerSetWantsToGoDownLadder(WantsToClimbLadderDown);
 		}
+		if (IsLedgeHanging)
+		{
+			ServerSetWantsToStopLedgeHang(WantsToStopLedgeHang);
+		}
 	}
 
 	DoCustomJump();
@@ -187,6 +191,11 @@ void UParkourMovementComponent::OnMovementUpdated(float DeltaSeconds, const FVec
 	SetVerticalWallRunRotation();
 
 	ApplyVerticalWallRunRotation();
+
+	if (IsLedgeHanging && WantsToStopLedgeHang)
+	{
+		EndLedgeHang();
+	}
 }
 
 void UParkourMovementComponent::OnActorHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit)
@@ -715,6 +724,20 @@ void UParkourMovementComponent::DoCustomJump()
 			Launch(LaunchVelocity);
 
 			UE_LOG(LogParkourMovement, Warning, TEXT("Ladder Jump Velocity %s %i"), *LaunchVelocity.ToString(), GetPawnOwner()->GetLocalRole());
+		}
+		else if (IsLedgeHanging)
+		{
+			FVector LaunchVelocity;
+
+			LaunchVelocity.X = LadderJumpOffForce * (CharacterOwner->GetActorForwardVector().X) * -1.f;
+			LaunchVelocity.Y = LadderJumpOffForce * (CharacterOwner->GetActorForwardVector().Y) * -1.f;
+			LaunchVelocity.Z = LadderJumpHeight;
+
+			EndLedgeHang();
+
+			Launch(LaunchVelocity);
+
+			UE_LOG(LogParkourMovement, Warning, TEXT("Ledge Hang Jump Velocity %s %i"), *LaunchVelocity.ToString(), GetPawnOwner()->GetLocalRole());
 		}
 	}
 }
@@ -1324,17 +1347,22 @@ void UParkourMovementComponent::BeginLedgeHang()
 {
 	UE_LOG(LogParkourMovement, Warning, TEXT("Begin Ledge Hang %i"), PawnOwner->GetLocalRole());
 
-	if (IsCustomMovementMode(ECustomMovementMode::CMOVE_LedgeHang))
+	/*if (IsCustomMovementMode(ECustomMovementMode::CMOVE_LedgeHang))
 	{
 		return;
-	}
+	}*/
 
 	SetMovementMode(EMovementMode::MOVE_Custom, ECustomMovementMode::CMOVE_LedgeHang);
+
+	IsLedgeHanging = true;
 }
 
 void UParkourMovementComponent::EndLedgeHang()
 {
 	SetMovementMode(EMovementMode::MOVE_Falling);
+
+	IsLedgeHanging = false;
+	WantsToStopLedgeHang = false;
 }
 
 #pragma endregion
@@ -1957,6 +1985,28 @@ void UParkourMovementComponent::ServerSetWantsToGoDownLadder_Implementation(cons
 	WantsToClimbLadderDown = WantsToGoDown;
 }
 
+void UParkourMovementComponent::SetWantsToStopLedgeHang(bool KeyIsDown)
+{
+	if (IsLedgeHanging)
+	{
+		WantsToStopLedgeHang = true;
+	}
+	else
+	{
+		WantsToStopLedgeHang = false;
+	}
+}
+
+bool UParkourMovementComponent::ServerSetWantsToStopLedgeHang_Validate(const bool WantsToStop)
+{
+	return true;
+}
+
+void UParkourMovementComponent::ServerSetWantsToStopLedgeHang_Implementation(const bool WantsToStop)
+{
+	WantsToStopLedgeHang = WantsToStop;
+}
+
 bool UParkourMovementComponent::IsCustomMovementMode(uint8 custom_movement_mode) const
 {
 	return MovementMode == EMovementMode::MOVE_Custom && CustomMovementMode == custom_movement_mode;
@@ -1974,6 +2024,11 @@ void FSavedMove_My::Clear()
 
 	SavedWantsToCustomJump = false;
 	SavedWantsToVerticalWallRunRotate = false;
+
+	SavedWantsToClimbLadderUp = false;
+	SavedWantsToClimbLadderDown = false;
+
+	SavedWantsToStopLedgeHang = false;
 }
 
 uint8 FSavedMove_My::GetCompressedFlags() const
@@ -2024,6 +2079,8 @@ void FSavedMove_My::SetMoveFor(ACharacter* Character, float InDeltaTime, FVector
 
 		SavedWantsToClimbLadderUp = charMove->WantsToClimbLadderUp;
 		SavedWantsToClimbLadderDown = charMove->WantsToClimbLadderDown;
+
+		SavedWantsToStopLedgeHang = charMove->WantsToStopLedgeHang;
 	}
 }
 
@@ -2046,6 +2103,8 @@ void FSavedMove_My::PrepMoveFor(class ACharacter* Character)
 
 		charMove->WantsToClimbLadderUp = SavedWantsToClimbLadderUp;
 		charMove->WantsToClimbLadderDown = SavedWantsToClimbLadderDown;
+
+		charMove->WantsToStopLedgeHang = SavedWantsToStopLedgeHang;
 	}
 }
 

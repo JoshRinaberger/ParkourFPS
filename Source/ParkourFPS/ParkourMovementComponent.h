@@ -39,6 +39,8 @@ private:
 	uint8 WantsToClimbLadderUp : 1;
 	uint8 WantsToClimbLadderDown : 1;
 
+	uint8 WantsToStopLedgeHang : 1;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement", Meta = (AllowPrivateAccess = "true"))
 	bool DrawDebug = true;
 
@@ -174,6 +176,8 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Climbing", Meta = (AllowPrivateAccess = "true"))
 	float MaxQuickClimbWallWidth = 100.0;
 
+	bool IsLedgeHanging = false;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
@@ -302,6 +306,12 @@ public:
 	UFUNCTION(Unreliable, Server, WithValidation)
 	void ServerSetWantsToGoDownLadder(const bool WantsToGoDown);
 
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	void SetWantsToStopLedgeHang(bool KeyIsDown);
+
+	UFUNCTION(Unreliable, Server, WithValidation)
+	void ServerSetWantsToStopLedgeHang(const bool WantsToStop);
+
 
 
 	bool IsCustomMovementMode(uint8 custom_movement_mode) const;
@@ -340,6 +350,8 @@ private:
 
 	uint8 SavedWantsToClimbLadderUp : 1;
 	uint8 SavedWantsToClimbLadderDown : 1;
+
+	uint8 SavedWantsToStopLedgeHang;
 };
 
 class FNetworkPredictionData_Client_My : public FNetworkPredictionData_Client_Character
