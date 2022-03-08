@@ -154,10 +154,19 @@ private:
 	// ====================== Climbing Variables =================================
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Climbing", Meta = (AllowPrivateAccess = "true"))
-	float MinClimbHeight = 50.0;
+	float MinClimbHeight = 100.0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Climbing", Meta = (AllowPrivateAccess = "true"))
 	float MaxClimbHeight = 170.0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Climbing", Meta = (AllowPrivateAccess = "true"))
+		float MinQuickClimbHeight = 50.0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Climbing", Meta = (AllowPrivateAccess = "true"))
+		float MaxQuickClimbHeight = 100.0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Climbing", Meta = (AllowPrivateAccess = "true"))
+	float MaxWallWidth = 100.0;
 
 protected:
 	virtual void BeginPlay() override;
@@ -232,6 +241,8 @@ protected:
 	bool CheckCanHangLedge();
 	bool CheckCanClimb();
 	bool CheckCanClimbToHit(FHitResult Hit);
+	bool CheckCanQuickClimb();
+	bool CheckCanVault();
 
 
 public:
