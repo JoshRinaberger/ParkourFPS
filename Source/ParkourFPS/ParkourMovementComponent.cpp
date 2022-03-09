@@ -192,6 +192,12 @@ void UParkourMovementComponent::OnMovementUpdated(float DeltaSeconds, const FVec
 
 	ApplyVerticalWallRunRotation();
 
+	if (IsVerticalWallRunning && CheckCanHangLedge())
+	{
+		EndVerticalWallRun();
+		BeginLedgeHang();
+	}
+
 	if (IsLedgeHanging && WantsToStopLedgeHang)
 	{
 		EndLedgeHang();
@@ -851,6 +857,8 @@ bool UParkourMovementComponent::BeginVerticalWallRun()
 		IsVerticalWallRunning = true;
 		IsFacingTowardsWall = true;
 
+		static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->PlayVerticalWallRunMontage();
+
 		return true;
 	}
 
@@ -864,6 +872,8 @@ void UParkourMovementComponent::EndVerticalWallRun()
 	IsRotatingAwayFromWall = false;
 
 	MovementMode = EMovementMode::MOVE_Falling;
+
+	static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->EndVerticalWallRunMontage();
 }
 
 #pragma endregion
@@ -1355,14 +1365,20 @@ void UParkourMovementComponent::BeginLedgeHang()
 	SetMovementMode(EMovementMode::MOVE_Custom, ECustomMovementMode::CMOVE_LedgeHang);
 
 	IsLedgeHanging = true;
+
+	static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->PlayLedgeHangMontage();
 }
 
 void UParkourMovementComponent::EndLedgeHang()
 {
+	UE_LOG(LogParkourMovement, Warning, TEXT("End Ledge Hang %i"), PawnOwner->GetLocalRole());
+
 	SetMovementMode(EMovementMode::MOVE_Falling);
 
 	IsLedgeHanging = false;
 	WantsToStopLedgeHang = false;
+
+	static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->EndLedgeHangMontage();
 }
 
 #pragma endregion
@@ -1526,11 +1542,11 @@ void UParkourMovementComponent::PhysVerticalWallRun(float deltaTime, int32 Itera
 		UE_LOG(LogParkourMovement, Warning, TEXT("Vertical wall run ended by wants to vertical wall run false"));
 	}
 
-	if (CheckCanHangLedge())
+	/*if (CheckCanHangLedge())
 	{
 		EndVerticalWallRun();
 		BeginLedgeHang();
-	}
+	}*/
 
 	float CurrentSpeed = Velocity.Size();
 

@@ -99,5 +99,17 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void EndWallRunRMontage();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void PlayVerticalWallRunMontage();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void EndVerticalWallRunMontage();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void PlayLedgeHangMontage();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void EndLedgeHangMontage();
 };
 
