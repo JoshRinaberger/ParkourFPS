@@ -111,5 +111,17 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void EndLedgeHangMontage();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void PlayLadderUpMontage();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void PlayLadderDownMontage();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void PauseLadderMontage();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void EndLadderMontage();
 };
 

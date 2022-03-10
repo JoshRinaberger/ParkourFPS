@@ -1080,6 +1080,8 @@ void UParkourMovementComponent::EndClimbLadder()
 
 	SetMovementMode(EMovementMode::MOVE_Falling);
 
+	static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->EndLadderMontage();
+
 	UE_LOG(LogParkourMovement, Warning, TEXT("Climb Ladder End %i"), GetPawnOwner()->GetLocalRole());
 }
 
@@ -1884,17 +1886,34 @@ void UParkourMovementComponent::PhysClimbLadder(float DeltaTime, int32 Iteration
 		return;
 	}
 
+	FVector OldVelocity = Velocity;
+
 	if (WantsToClimbLadderUp && !WantsToClimbLadderDown)
 	{
 		Velocity = FVector(0, 0, LadderSpeedUp);
+		
+		if (Velocity != OldVelocity)
+		{
+			static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->PlayLadderUpMontage();
+		}
 	}
 	else if (!WantsToClimbLadderUp && WantsToClimbLadderDown)
 	{
 		Velocity = FVector(0, 0, LadderSpeedDown * -1);
+
+		if (Velocity != OldVelocity)
+		{
+			static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->PlayLadderDownMontage();
+		}
 	}
 	else
 	{
 		Velocity = FVector(0, 0, 0);
+
+		if (Velocity != OldVelocity)
+		{
+			static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->PauseLadderMontage();
+		}
 	}
 
 	const FVector AdjustedVelocity = Velocity * DeltaTime;
