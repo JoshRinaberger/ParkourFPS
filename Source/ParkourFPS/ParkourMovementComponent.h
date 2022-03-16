@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "ParkourFPSCharacter.h"
 #include "ParkourMovementComponent.generated.h"
 
 /**
@@ -178,9 +179,15 @@ private:
 
 	bool IsLedgeHanging = false;
 
+	FVector LedgeNormal;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+
+	AParkourFPSCharacter* GetParkourFPSCharacter();
+
+	void SetCameraRotationLimit(float MinPitch, float MaxPitch, float MinRoll, float MaxRoll, float MinYaw, float MaxYaw);
 
 	bool IsWalkingForward();
 

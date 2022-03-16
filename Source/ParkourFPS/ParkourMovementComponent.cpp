@@ -64,6 +64,36 @@ void UParkourMovementComponent::TickComponent(float DeltaTime, enum ELevelTick T
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }
 
+AParkourFPSCharacter* UParkourMovementComponent::GetParkourFPSCharacter()
+{
+	return static_cast<AParkourFPSCharacter*>(GetCharacterOwner());
+}
+
+void UParkourMovementComponent::SetCameraRotationLimit(float MinPitch, float MaxPitch, float MinRoll, float MaxRoll, float MinYaw, float MaxYaw)
+{
+	if (GetPawnOwner()->IsLocallyControlled() == false)
+	{
+		return;
+	}
+
+	APlayerController* LocalPlayerController = GetWorld()->GetFirstPlayerController();
+
+	if (LocalPlayerController)
+	{
+		APlayerCameraManager* LocalCameraManager = LocalPlayerController->PlayerCameraManager;
+
+		if (LocalCameraManager)
+		{
+			LocalCameraManager->ViewPitchMin = MinPitch;
+			LocalCameraManager->ViewPitchMax = MaxPitch;
+			LocalCameraManager->ViewRollMin = MinRoll;
+			LocalCameraManager->ViewRollMax = MaxRoll;
+			LocalCameraManager->ViewYawMin = MinYaw;
+			LocalCameraManager->ViewYawMax = MaxYaw;
+		}
+	}
+}
+
 void UParkourMovementComponent::UpdateFromCompressedFlags(uint8 Flags)
 {
 	Super::UpdateFromCompressedFlags(Flags);
@@ -1174,6 +1204,15 @@ bool UParkourMovementComponent::CheckCanHangLedge()
 		return false;
 	}
 
+	// Save the direction of the wall/ledge facing towards the character, used for setting camera rotation limits
+	TraceStart = GetCharacterOwner()->GetActorLocation();
+	TraceEnd = TraceStart + (GetCharacterOwner()->GetActorForwardVector() * 100);
+	FHitResult HitLedgeNormal;
+
+	bool LedgeWasHit = GetWorld()->LineTraceSingleByChannel(HitLedgeNormal, TraceStart, TraceEnd, ECC_Visibility, TraceParams);
+
+	LedgeNormal = HitLedgeNormal.ImpactNormal;
+
 	return true;
 }
 
@@ -1359,16 +1398,23 @@ void UParkourMovementComponent::BeginLedgeHang()
 {
 	UE_LOG(LogParkourMovement, Warning, TEXT("Begin Ledge Hang %i"), PawnOwner->GetLocalRole());
 
-	/*if (IsCustomMovementMode(ECustomMovementMode::CMOVE_LedgeHang))
-	{
-		return;
-	}*/
-
 	SetMovementMode(EMovementMode::MOVE_Custom, ECustomMovementMode::CMOVE_LedgeHang);
 
 	IsLedgeHanging = true;
 
-	static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->PlayLedgeHangMontage();
+	GetParkourFPSCharacter()->PlayLedgeHangMontage();
+
+	GetParkourFPSCharacter()->bAcceptingMovementInput = false;
+	GetParkourFPSCharacter()->bUseControllerRotationYaw = false;
+
+	
+	FVector LedgeRotationVector = LedgeNormal;
+	LedgeRotationVector.X *= -1;
+	LedgeRotationVector.Y *= -1;
+
+	FRotator LedgeRotation = LedgeRotationVector.Rotation();
+
+	SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, LedgeRotation.Yaw - 70, LedgeRotation.Yaw + 70);
 }
 
 void UParkourMovementComponent::EndLedgeHang()
@@ -1380,7 +1426,12 @@ void UParkourMovementComponent::EndLedgeHang()
 	IsLedgeHanging = false;
 	WantsToStopLedgeHang = false;
 
-	static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->EndLedgeHangMontage();
+	GetParkourFPSCharacter()->EndLedgeHangMontage();
+
+	GetParkourFPSCharacter()->bAcceptingMovementInput = true;
+	GetParkourFPSCharacter()->bUseControllerRotationYaw = true;
+
+	SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, 0, 359.98993);
 }
 
 #pragma endregion
@@ -1543,12 +1594,6 @@ void UParkourMovementComponent::PhysVerticalWallRun(float deltaTime, int32 Itera
 
 		UE_LOG(LogParkourMovement, Warning, TEXT("Vertical wall run ended by wants to vertical wall run false"));
 	}
-
-	/*if (CheckCanHangLedge())
-	{
-		EndVerticalWallRun();
-		BeginLedgeHang();
-	}*/
 
 	float CurrentSpeed = Velocity.Size();
 
