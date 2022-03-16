@@ -163,6 +163,9 @@ private:
 	float MaxLedgeHangHeight = 170.0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Climbing", Meta = (AllowPrivateAccess = "true"))
+	float LedgeHeightOffset = 50.0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Climbing", Meta = (AllowPrivateAccess = "true"))
 	float MinClimbHeight = 100.0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Climbing", Meta = (AllowPrivateAccess = "true"))
@@ -180,6 +183,7 @@ private:
 	bool IsLedgeHanging = false;
 
 	FVector LedgeNormal;
+	float LedgeHeight;
 
 protected:
 	virtual void BeginPlay() override;

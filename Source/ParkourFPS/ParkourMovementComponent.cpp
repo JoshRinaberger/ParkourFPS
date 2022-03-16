@@ -1164,6 +1164,8 @@ bool UParkourMovementComponent::CheckCanHangLedge()
 		return false;
 	}
 
+	LedgeHeight = HitLow.Location.Z;
+
 	// Make sure that the surface is at an appropriate height
 	float SurfaceHeight = HitLow.Location.Z - HitLow.TraceEnd.Z;
 
@@ -1413,8 +1415,12 @@ void UParkourMovementComponent::BeginLedgeHang()
 	LedgeRotationVector.Y *= -1;
 
 	FRotator LedgeRotation = LedgeRotationVector.Rotation();
-
 	SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, LedgeRotation.Yaw - 70, LedgeRotation.Yaw + 70);
+
+
+	FVector PlayerOnLedgeLocation = GetParkourFPSCharacter()->GetActorLocation();
+	PlayerOnLedgeLocation.Z = LedgeHeight - LedgeHeightOffset;
+	GetParkourFPSCharacter()->SetActorLocation(PlayerOnLedgeLocation);
 }
 
 void UParkourMovementComponent::EndLedgeHang()
