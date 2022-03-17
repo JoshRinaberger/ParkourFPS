@@ -123,5 +123,11 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void EndLadderMontage();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void PlayZiplineMontage();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void EndZiplineMontage();
 };
 

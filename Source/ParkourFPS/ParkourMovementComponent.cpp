@@ -307,14 +307,7 @@ void UParkourMovementComponent::OnActorHit(AActor* SelfActor, AActor* OtherActor
 
 		if (OtherActor->IsA(AZipline::StaticClass()))
 		{
-			bool CanZipline = CheckCanZipline();
-
-			if (CanZipline)
-			{
-				ZiplineStart = static_cast<AZipline*>(OtherActor)->StartPoint;
-				ZiplineEnd = static_cast<AZipline*>(OtherActor)->EndPoint;
-				ZiplineDirection = static_cast<AZipline*>(OtherActor)->GetZiplineDirection();
-			}
+			bool CanZipline = CheckCanZipline(OtherActor);
 
 			return;
 		}
@@ -1077,7 +1070,7 @@ FVector UParkourMovementComponent::CalculateFloorInfluence(FVector FloorNormal)
 
 #pragma region Zipline Functions
 
-bool UParkourMovementComponent::CheckCanZipline()
+bool UParkourMovementComponent::CheckCanZipline(AActor* HitActor)
 {
 	UE_LOG(LogParkourMovement, Warning, TEXT("Zipline Checks"));
 
@@ -1096,6 +1089,10 @@ bool UParkourMovementComponent::CheckCanZipline()
 		WantsToZiplineLadder = true;
 	}
 
+	ZiplineStart = static_cast<AZipline*>(HitActor)->StartPoint;
+	ZiplineEnd = static_cast<AZipline*>(HitActor)->EndPoint;
+	ZiplineDirection = static_cast<AZipline*>(HitActor)->GetZiplineDirection();
+
 	BeginZipline();
 
 	return true;
@@ -1109,6 +1106,18 @@ void UParkourMovementComponent::BeginZipline()
 	}
 
 	UE_LOG(LogParkourMovement, Warning, TEXT("Zipline Begin"));
+
+	GetParkourFPSCharacter()->PlayZiplineMontage();
+
+
+	FVector ZiplineRotationVector = ZiplineDirection;
+	ZiplineRotationVector.Z = 0;
+
+	FRotator ZiplineRotation = ZiplineRotationVector.Rotation();
+	SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, ZiplineRotation.Yaw - 70, ZiplineRotation.Yaw + 70);
+
+	GetParkourFPSCharacter()->bAcceptingMovementInput = false;
+	GetParkourFPSCharacter()->bUseControllerRotationYaw = false;
 }
 
 void UParkourMovementComponent::EndZipline()
@@ -1120,6 +1129,13 @@ void UParkourMovementComponent::EndZipline()
 	MovementMode = EMovementMode::MOVE_Falling;
 
 	UE_LOG(LogParkourMovement, Warning, TEXT("Zipline End"));
+
+	GetParkourFPSCharacter()->EndZiplineMontage();
+
+	SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, 0, 359.98993);
+
+	GetParkourFPSCharacter()->bAcceptingMovementInput = true;
+	GetParkourFPSCharacter()->bUseControllerRotationYaw = true;
 }
 
 #pragma endregion

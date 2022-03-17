@@ -252,7 +252,7 @@ protected:
 
 	// Zipline Functions
 
-	bool CheckCanZipline();
+	bool CheckCanZipline(AActor* HitActor);
 	void BeginZipline();
 	void EndZipline();
 	void PhysZipline(float DeltaTime, int32 Iterations);
