@@ -69,6 +69,7 @@ private:
 	float WallRunDirection = 0.0;
 	FVector WallRunDirectionVector;
 	FVector WallRunNormal;
+	FVector WallRunImpactNormal;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Custom Character Movement|Wall Running", Meta = (AllowPrivateAccess = "true"))
 	float WallRunLineTraceVerticalTolerance = 50.0f;

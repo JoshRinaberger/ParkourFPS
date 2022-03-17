@@ -470,6 +470,8 @@ bool UParkourMovementComponent::CheckWallRunTraces()
 		{
 			WallRunDirection = 1.0;
 
+			WallRunImpactNormal = HitL.ImpactNormal;
+
 			UE_LOG(LogParkourMovement, Warning, TEXT("CHECK PASSED L"));
 
 			return true;
@@ -489,6 +491,8 @@ bool UParkourMovementComponent::CheckWallRunTraces()
 		if (IsValidWallRunVector(HitL.Normal, false))
 		{
 			WallRunDirection = -1.0;
+
+			WallRunImpactNormal = HitL.ImpactNormal;
 
 			UE_LOG(LogParkourMovement, Warning, TEXT("CHECK PASSED R"));
 
@@ -680,14 +684,48 @@ bool UParkourMovementComponent::BeginWallRun()
 	{
 		IsWallRunning = true;
 
+		UE_LOG(LogParkourMovement, Display, TEXT("Begin Wall Run Forward Vector: %s"), *GetCharacterOwner()->GetActorForwardVector().ToString());
+		UE_LOG(LogParkourMovement, Display, TEXT("Begin Wall Run Impact Wall Normal: %s"), *WallRunImpactNormal.ToString());
+
+		FRotator ControlRotation = PawnOwner->GetController()->GetControlRotation();
+
 		if (IsWallRunningL)
 		{
 			static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->PlayWallRunLMontage();
+
+			FRotator WallRunRotation = WallRunImpactNormal.Rotation();
+			WallRunRotation.Yaw += 90;
+
+			SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, WallRunRotation.Yaw - 90, WallRunRotation.Yaw + 90);
+
+			// Rotate entire character so that the mesh and everything is aligned with the wall
+			FRotator NewControlRotation = ControlRotation;
+			NewControlRotation.Yaw = WallRunRotation.Yaw;
+			PawnOwner->GetController()->SetControlRotation(WallRunRotation);
 		}
 		else
 		{
 			static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->PlayWallRunRMontage();
+
+			FRotator WallRunRotation = WallRunImpactNormal.Rotation();
+			WallRunRotation.Yaw -= 90;
+
+			PawnOwner->GetController()->SetControlRotation(WallRunRotation);
+
+			SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, WallRunRotation.Yaw - 90, WallRunRotation.Yaw + 90);
+
+			// Rotate entire character so that the mesh and everything is aligned with the wall
+			FRotator NewControlRotation = ControlRotation;
+			NewControlRotation.Yaw = WallRunRotation.Yaw;
+			PawnOwner->GetController()->SetControlRotation(WallRunRotation);
 		}
+
+		GetParkourFPSCharacter()->bAcceptingMovementInput = false;
+		GetParkourFPSCharacter()->bUseControllerRotationYaw = false;
+
+		// Rotate the controller back to it's original state so after the mesh is seperated from the control rotation
+		// so that the camera remains in the same position it was in before the wall run.
+		PawnOwner->GetController()->SetControlRotation(ControlRotation);
 
 		return true;
 	}
@@ -713,6 +751,11 @@ void UParkourMovementComponent::EndWallRun()
 	IsWallRunning = false;
 	IsWallRunningL = false;
 	IsWallRunningR = false;
+
+	SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, 0, 359.98993);
+
+	GetParkourFPSCharacter()->bAcceptingMovementInput = true;
+	GetParkourFPSCharacter()->bUseControllerRotationYaw = true;
 }
 
 void UParkourMovementComponent::DoCustomJump()
@@ -910,6 +953,8 @@ void UParkourMovementComponent::EndVerticalWallRun()
 	MovementMode = EMovementMode::MOVE_Falling;
 
 	static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->EndVerticalWallRunMontage();
+
+	SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, 0, 359.98993);
 }
 
 #pragma endregion
@@ -1555,6 +1600,11 @@ void UParkourMovementComponent::PhysWallRun(float deltaTime, int32 Iterations)
 
 	GetWorld()->LineTraceSingleByChannel(HitL, TraceStart, TraceEnd, ECC_Visibility, TraceParams);
 
+	if (DrawDebug)
+	{
+		DrawDebugLine(GetWorld(), TraceStart, TraceEnd, FColor::Emerald, true, 1, 0, 2);
+	}
+
 	// Set the wall run direction based whether a wall is found on the left or the right side of the character
 	if (HitL.bBlockingHit)
 	{
@@ -1568,6 +1618,11 @@ void UParkourMovementComponent::PhysWallRun(float deltaTime, int32 Iterations)
 		TraceEnd = GetWallRunEndVectorR();
 
 		GetWorld()->LineTraceSingleByChannel(HitL, TraceStart, TraceEnd, ECC_Visibility, TraceParams);
+
+		if (DrawDebug)
+		{
+			DrawDebugLine(GetWorld(), TraceStart, TraceEnd, FColor::Blue, true, 1, 0, 2);
+		}
 
 		if (HitL.bBlockingHit)
 		{
