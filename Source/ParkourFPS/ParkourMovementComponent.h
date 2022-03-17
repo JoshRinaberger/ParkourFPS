@@ -185,9 +185,16 @@ private:
 	FVector LedgeNormal;
 	float LedgeHeight;
 
+	FVector LedgeHangLerpStartLocation;
+	float LedgeHangLerpTime = 0;
+	float LedgeHangLerpDuration = 0.3;
+	bool LedgeHangLerpComplete = false;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+
+	void LogClientCorrection(bool isServer, float TimeStamp, FVector NewLocation, FVector NewVelocity, uint8 ServerMovementMode);
 
 	AParkourFPSCharacter* GetParkourFPSCharacter();
 
@@ -267,6 +274,7 @@ protected:
 
 	void BeginLedgeHang();
 	void EndLedgeHang();
+	void LedgeHangLerp();
 
 
 public:
@@ -276,9 +284,13 @@ public:
 	virtual void UpdateCharacterStateBeforeMovement(float DeltaSeconds) override;
 	virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) override;
 	virtual void OnMovementUpdated(float DeltaSeconds, const FVector& OldLocation, const FVector& OldVelocity) override;
-	virtual void OnClientCorrectionReceived(class FNetworkPredictionData_Client_Character& ClientData, float TimeStamp, FVector NewLocation, FVector NewVelocity,
-		UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode) override;
 	virtual FNetworkPredictionData_Client* GetPredictionData_Client() const override;
+
+	virtual void OnClientCorrectionReceived(class FNetworkPredictionData_Client_Character& ClientData, float TimeStamp, FVector NewLocation, FVector NewVelocity,
+	UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode) override;
+
+	virtual void ClientAdjustPosition(float TimeStamp, FVector NewLoc, FVector NewVel, UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase,
+	bool bBaseRelativePosition, uint8 ServerMovementMode) override;
 
 
 	UFUNCTION(BlueprintCallable, Category = "Movement")

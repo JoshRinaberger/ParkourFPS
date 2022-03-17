@@ -146,7 +146,10 @@ void UParkourMovementComponent::OnMovementModeChanged(EMovementMode PreviousMove
 {
 	if (PreviousMovementMode != MovementMode || PreviousCustomMode != CustomMovementMode)
 	{
-		UE_LOG(LogParkourMovement, Warning, TEXT("Movement Mode Changed To:  %i %s"), MovementMode, *CharacterOwner->GetName());
+		const FString MovementModeString = StaticEnum<EMovementMode>()->GetValueAsString(MovementMode);
+		UE_LOG(LogParkourMovement, Log, TEXT("Current Movement Mode: %s %s"), *MovementModeString, *CharacterOwner->GetName());
+
+		//UE_LOG(LogParkourMovement, Warning, TEXT("Movement Mode Changed To:  %i %s"), MovementMode, *CharacterOwner->GetName());
 
 		if (MovementMode == EMovementMode::MOVE_Custom)
 			UE_LOG(LogParkourMovement, Warning, TEXT("Custom Movement Mode Changed To: %i %s"), CustomMovementMode, *CharacterOwner->GetName());
@@ -228,9 +231,16 @@ void UParkourMovementComponent::OnMovementUpdated(float DeltaSeconds, const FVec
 		BeginLedgeHang();
 	}
 
-	if (IsLedgeHanging && WantsToStopLedgeHang)
+	if (IsLedgeHanging)
 	{
-		EndLedgeHang();
+		if (WantsToStopLedgeHang)
+		{
+			EndLedgeHang();
+		}
+		else
+		{
+			//LedgeHangLerp();
+		}
 	}
 }
 
@@ -1418,9 +1428,15 @@ void UParkourMovementComponent::BeginLedgeHang()
 	SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, LedgeRotation.Yaw - 70, LedgeRotation.Yaw + 70);
 
 
-	FVector PlayerOnLedgeLocation = GetParkourFPSCharacter()->GetActorLocation();
+	/*FVector PlayerOnLedgeLocation = GetParkourFPSCharacter()->GetActorLocation();
 	PlayerOnLedgeLocation.Z = LedgeHeight - LedgeHeightOffset;
-	GetParkourFPSCharacter()->SetActorLocation(PlayerOnLedgeLocation);
+	GetParkourFPSCharacter()->SetActorLocation(PlayerOnLedgeLocation);*/
+
+	LedgeHangLerpStartLocation = CharacterOwner->GetActorLocation();
+	LedgeHangLerpTime = 0;
+	LedgeHangLerpComplete = false;
+
+	Velocity = FVector(0, 0, 0);
 }
 
 void UParkourMovementComponent::EndLedgeHang()
@@ -1441,12 +1457,6 @@ void UParkourMovementComponent::EndLedgeHang()
 }
 
 #pragma endregion
-
-void UParkourMovementComponent::OnClientCorrectionReceived(class FNetworkPredictionData_Client_Character& ClientData, float TimeStamp, FVector NewLocation, FVector NewVelocity,
-	UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode) 
-{
-	Super::OnClientCorrectionReceived(ClientData, TimeStamp, NewLocation, NewVelocity, NewBase, NewBaseBoneName, bHasBase, bBaseRelativePosition, ServerMovementMode);
-}
 
 FNetworkPredictionData_Client* UParkourMovementComponent::GetPredictionData_Client() const
 {
@@ -1972,6 +1982,24 @@ void UParkourMovementComponent::PhysClimbLadder(float DeltaTime, int32 Iteration
 	SafeMoveUpdatedComponent(AdjustedVelocity, UpdatedComponent->GetComponentQuat(), true, Hit);
 }
 
+void UParkourMovementComponent::LedgeHangLerp()
+{
+	if (LedgeHangLerpComplete == false)
+	{
+		if (LedgeHangLerpTime > LedgeHangLerpDuration)
+		{
+			LedgeHangLerpComplete = true;
+		}
+
+		FVector LedgeHangTargetLocation = CharacterOwner->GetActorLocation();
+		LedgeHangTargetLocation.Z = LedgeHeight - LedgeHeightOffset;
+
+		CharacterOwner->SetActorLocation(FMath::Lerp(LedgeHangLerpStartLocation, LedgeHangTargetLocation, LedgeHangLerpTime / LedgeHangLerpDuration));
+
+		LedgeHangLerpTime += GetWorld()->GetDeltaSeconds();
+	}
+}
+
 #pragma endregion
 
 void UParkourMovementComponent::SetMovementKey1Down(bool KeyIsDown)
@@ -2075,7 +2103,7 @@ void UParkourMovementComponent::SetWantsToStopLedgeHang(bool KeyIsDown)
 {
 	if (IsLedgeHanging)
 	{
-		WantsToStopLedgeHang = true;
+		WantsToStopLedgeHang = KeyIsDown;
 	}
 	else
 	{
@@ -2096,6 +2124,62 @@ void UParkourMovementComponent::ServerSetWantsToStopLedgeHang_Implementation(con
 bool UParkourMovementComponent::IsCustomMovementMode(uint8 custom_movement_mode) const
 {
 	return MovementMode == EMovementMode::MOVE_Custom && CustomMovementMode == custom_movement_mode;
+}
+
+// logging correction details from the client pov when a movement correction is made
+void UParkourMovementComponent::OnClientCorrectionReceived(class FNetworkPredictionData_Client_Character& ClientData, float TimeStamp, FVector NewLocation, FVector NewVelocity,
+	UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode)
+{
+	LogClientCorrection(false, TimeStamp, NewLocation, NewVelocity, ServerMovementMode);
+	Super::OnClientCorrectionReceived(ClientData, TimeStamp, NewLocation, NewVelocity, NewBase, NewBaseBoneName, bHasBase, bBaseRelativePosition, ServerMovementMode);
+}
+
+// logging correction details when from the server pov when a movement correction is made
+void UParkourMovementComponent::ClientAdjustPosition(float TimeStamp, FVector NewLoc, FVector NewVel, UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase,
+	bool bBaseRelativePosition, uint8 ServerMovementMode)
+{
+	LogClientCorrection(true, TimeStamp, NewLoc, NewVel, ServerMovementMode);
+	//Super::ClientAdjustPosition(TimeStamp, NewLoc, NewVel, NewBase, NewBaseBoneName, bHasBase, bBaseRelativePosition, ServerMovementMode);
+}
+
+void UParkourMovementComponent::LogClientCorrection(bool isServer, float TimeStamp, FVector NewLocation, FVector NewVelocity, uint8 ServerMovementMode)
+{
+	if (isServer)
+	{
+		UE_LOG(LogMovementCorrections, Log, TEXT("============= SERVER SENDING MOVEMENT CORRECTION ============="));
+	}
+	else
+	{
+		UE_LOG(LogMovementCorrections, Log, TEXT("============= CLIENT RECEIVED MOVEMENT CORRECTION ============="));
+	}
+	UE_LOG(LogMovementCorrections, Log, TEXT("    "));
+	UE_LOG(LogMovementCorrections, Log, TEXT("Time Stamp: %f"), TimeStamp);
+	UE_LOG(LogMovementCorrections, Log, TEXT("    "));
+	UE_LOG(LogMovementCorrections, Log, TEXT("Current Position: %s"), *CharacterOwner->GetActorLocation().ToString());
+	UE_LOG(LogMovementCorrections, Log, TEXT("Corrected Position: %s"), *NewLocation.ToString());
+	UE_LOG(LogMovementCorrections, Log, TEXT("    "));
+	UE_LOG(LogMovementCorrections, Log, TEXT("Current Velocity: %s"), *CharacterOwner->GetVelocity().ToString());
+	UE_LOG(LogMovementCorrections, Log, TEXT("Corrected Velocity: %s"), *NewVelocity.ToString());
+	UE_LOG(LogMovementCorrections, Log, TEXT("    "));
+
+	const FString MovementModeString = StaticEnum<EMovementMode>()->GetValueAsString(MovementMode);
+	UE_LOG(LogMovementCorrections, Log, TEXT("Current Movement Mode: %s"), *MovementModeString);
+	UE_LOG(LogMovementCorrections, Log, TEXT("Current Movement Mode: %i"), (uint8)MovementMode);
+	UE_LOG(LogMovementCorrections, Log, TEXT("    "));
+
+	if (MovementMode == EMovementMode::MOVE_Custom)
+	{
+		const FString CustomMovementModeString = StaticEnum<ECustomMovementMode>()->GetValueAsString(static_cast<ECustomMovementMode>(CustomMovementMode));
+
+		UE_LOG(LogMovementCorrections, Log, TEXT("Custom Movement Mode: %s"), *CustomMovementModeString);
+		UE_LOG(LogMovementCorrections, Log, TEXT("Custom Movement Mode: %i"), CustomMovementMode);
+		UE_LOG(LogMovementCorrections, Log, TEXT("    "));
+	}
+
+	UE_LOG(LogMovementCorrections, Log, TEXT("Server Movement Mode: %i"), ServerMovementMode);
+
+	UE_LOG(LogMovementCorrections, Log, TEXT("    "));
+	UE_LOG(LogMovementCorrections, Log, TEXT("    "));
 }
 
 void FSavedMove_My::Clear()
