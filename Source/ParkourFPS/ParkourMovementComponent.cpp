@@ -237,10 +237,6 @@ void UParkourMovementComponent::OnMovementUpdated(float DeltaSeconds, const FVec
 		{
 			EndLedgeHang();
 		}
-		else
-		{
-			//LedgeHangLerp();
-		}
 	}
 }
 
@@ -1427,16 +1423,7 @@ void UParkourMovementComponent::BeginLedgeHang()
 	FRotator LedgeRotation = LedgeRotationVector.Rotation();
 	SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, LedgeRotation.Yaw - 70, LedgeRotation.Yaw + 70);
 
-
-	/*FVector PlayerOnLedgeLocation = GetParkourFPSCharacter()->GetActorLocation();
-	PlayerOnLedgeLocation.Z = LedgeHeight - LedgeHeightOffset;
-	GetParkourFPSCharacter()->SetActorLocation(PlayerOnLedgeLocation);*/
-
-	LedgeHangLerpStartLocation = CharacterOwner->GetActorLocation();
-	LedgeHangLerpTime = 0;
-	LedgeHangLerpComplete = false;
-
-	Velocity = FVector(0, 0, 0);
+	Velocity = FVector(0, 0, CharacterOwner->GetActorLocation().Z - LedgeHeight - LedgeHeightOffset);
 }
 
 void UParkourMovementComponent::EndLedgeHang()
@@ -1518,6 +1505,14 @@ void UParkourMovementComponent::PhysCustom(float deltaTime, int32 Iterations)
 		UE_LOG(LogParkourMovement, Warning, TEXT("Phys Climb Ladder %i"), GetPawnOwner()->GetLocalRole());
 
 		PhysClimbLadder(deltaTime, Iterations);
+
+		break;
+	}
+	case ECustomMovementMode::CMOVE_LedgeHang:
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Phys Ledge Hang %i"), GetPawnOwner()->GetLocalRole());
+
+		PhysLedgeHang(deltaTime, Iterations);
 
 		break;
 	}
@@ -1982,22 +1977,16 @@ void UParkourMovementComponent::PhysClimbLadder(float DeltaTime, int32 Iteration
 	SafeMoveUpdatedComponent(AdjustedVelocity, UpdatedComponent->GetComponentQuat(), true, Hit);
 }
 
-void UParkourMovementComponent::LedgeHangLerp()
+void UParkourMovementComponent::PhysLedgeHang(float DeltaTime, int32 Iterations)
 {
-	if (LedgeHangLerpComplete == false)
+	if (CharacterOwner->GetActorLocation().Z <= (LedgeHeight - LedgeHeightOffset))
 	{
-		if (LedgeHangLerpTime > LedgeHangLerpDuration)
-		{
-			LedgeHangLerpComplete = true;
-		}
-
-		FVector LedgeHangTargetLocation = CharacterOwner->GetActorLocation();
-		LedgeHangTargetLocation.Z = LedgeHeight - LedgeHeightOffset;
-
-		CharacterOwner->SetActorLocation(FMath::Lerp(LedgeHangLerpStartLocation, LedgeHangTargetLocation, LedgeHangLerpTime / LedgeHangLerpDuration));
-
-		LedgeHangLerpTime += GetWorld()->GetDeltaSeconds();
+		Velocity = FVector(0, 0, 0);
 	}
+
+	const FVector AdjustedVelocity = Velocity * DeltaTime;
+	FHitResult Hit(1.f);
+	SafeMoveUpdatedComponent(AdjustedVelocity, UpdatedComponent->GetComponentQuat(), true, Hit);
 }
 
 #pragma endregion

@@ -166,6 +166,9 @@ private:
 	float LedgeHeightOffset = 50.0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Climbing", Meta = (AllowPrivateAccess = "true"))
+	float LedgeHeightAdjustmentSpeed = 100.0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Climbing", Meta = (AllowPrivateAccess = "true"))
 	float MinClimbHeight = 100.0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Climbing", Meta = (AllowPrivateAccess = "true"))
@@ -184,11 +187,6 @@ private:
 
 	FVector LedgeNormal;
 	float LedgeHeight;
-
-	FVector LedgeHangLerpStartLocation;
-	float LedgeHangLerpTime = 0;
-	float LedgeHangLerpDuration = 0.3;
-	bool LedgeHangLerpComplete = false;
 
 protected:
 	virtual void BeginPlay() override;
@@ -274,7 +272,7 @@ protected:
 
 	void BeginLedgeHang();
 	void EndLedgeHang();
-	void LedgeHangLerp();
+	void PhysLedgeHang(float DeltaTime, int32 Iterations);
 
 
 public:
