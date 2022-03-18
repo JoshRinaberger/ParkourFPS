@@ -1154,6 +1154,34 @@ bool UParkourMovementComponent::CheckCanClimbLadder()
 		WantsToZiplineLadder = true;
 	}
 
+	// Required parameters for line traces
+	FCollisionQueryParams TraceParams;
+	TraceParams.AddIgnoredActor(CharacterOwner);
+	TraceParams.AddIgnoredActor(GetPawnOwner());
+
+	FHitResult Hit;
+	FVector TraceStart = CharacterOwner->GetActorLocation();
+	FVector TraceEnd = TraceStart + (CharacterOwner->GetActorForwardVector() * 75);
+	GetWorld()->LineTraceSingleByChannel(Hit, TraceStart, TraceEnd, ECC_Visibility, TraceParams);
+
+	if (DrawDebug)
+	{
+		DrawDebugLine(GetWorld(), TraceStart, TraceEnd, FColor::Magenta, true, 1, 0, 2);
+	}
+
+	// Make sure that the player is facing the ladder
+	if ((Hit.Actor != NULL))
+	{
+		if (Hit.Actor->IsA(ALadder::StaticClass()) == false)
+		{
+			return false;
+		}
+	}
+	else
+	{
+		return false;
+	}
+
 	BeginClimbLadder();
 
 	return true;
