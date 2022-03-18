@@ -154,6 +154,7 @@ private:
 
 	FVector LadderTop;
 	FVector LadderBottom;
+	FVector LadderNormal;
 
 	// ====================== Climbing Variables =================================
 

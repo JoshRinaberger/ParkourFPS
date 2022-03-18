@@ -1182,6 +1182,8 @@ bool UParkourMovementComponent::CheckCanClimbLadder()
 		return false;
 	}
 
+	LadderNormal = Hit.ImpactNormal;
+
 	BeginClimbLadder();
 
 	return true;
@@ -1195,6 +1197,17 @@ void UParkourMovementComponent::BeginClimbLadder()
 	}
 
 	UE_LOG(LogParkourMovement, Warning, TEXT("Climb Ladder Begin %i"), GetPawnOwner()->GetLocalRole());
+
+	GetParkourFPSCharacter()->bAcceptingMovementInput = false;
+	GetParkourFPSCharacter()->bUseControllerRotationYaw = false;
+
+
+	FVector LadderRotationVector = LadderNormal;
+	LadderRotationVector.X *= -1;
+	LadderRotationVector.Y *= -1;
+
+	FRotator LadderRotation = LadderRotationVector.Rotation();
+	SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, LadderRotation.Yaw - 70, LadderRotation.Yaw + 70);
 }
 
 void UParkourMovementComponent::EndClimbLadder()
@@ -1208,6 +1221,11 @@ void UParkourMovementComponent::EndClimbLadder()
 	static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->EndLadderMontage();
 
 	UE_LOG(LogParkourMovement, Warning, TEXT("Climb Ladder End %i"), GetPawnOwner()->GetLocalRole());
+
+	GetParkourFPSCharacter()->bAcceptingMovementInput = true;
+	GetParkourFPSCharacter()->bUseControllerRotationYaw = true;
+
+	SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, 0, 359.98993);
 }
 
 #pragma endregion
