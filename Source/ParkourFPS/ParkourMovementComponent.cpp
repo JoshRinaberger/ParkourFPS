@@ -1887,6 +1887,8 @@ void UParkourMovementComponent::ApplyVerticalWallRunRotation()
 			SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, VerticalWallRunRotation.Yaw - 70, VerticalWallRunRotation.Yaw + 70);
 
 			GetParkourFPSCharacter()->AllowYawInput(true);
+
+			GetParkourFPSCharacter()->PlaySlideDownWallMontage();
 		}
 		else
 		{

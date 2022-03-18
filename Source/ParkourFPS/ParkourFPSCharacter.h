@@ -109,6 +109,12 @@ public:
 	void EndVerticalWallRunMontage();
 
 	UFUNCTION(BlueprintImplementableEvent)
+	void PlaySlideDownWallMontage();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void EndSlideDownWallMontage();
+
+	UFUNCTION(BlueprintImplementableEvent)
 	void PlayLedgeHangMontage();
 
 	UFUNCTION(BlueprintImplementableEvent)
