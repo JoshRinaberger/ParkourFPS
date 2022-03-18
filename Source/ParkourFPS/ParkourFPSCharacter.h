@@ -78,6 +78,8 @@ public:
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
+	void AllowYawInput(bool IsAllowed);
+
 
 
 	bool bAcceptingMovementInput = true;

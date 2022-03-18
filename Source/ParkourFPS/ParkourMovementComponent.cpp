@@ -917,6 +917,8 @@ bool UParkourMovementComponent::CheckVerticalWallRunTraces()
 		return false;
 	}
 
+	VerticalWallRunNormal = HitLow.ImpactNormal;
+
 	return true;
 }
 
@@ -930,6 +932,16 @@ bool UParkourMovementComponent::BeginVerticalWallRun()
 		IsFacingTowardsWall = true;
 
 		static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->PlayVerticalWallRunMontage();
+
+		GetParkourFPSCharacter()->bAcceptingMovementInput = false;
+		GetParkourFPSCharacter()->bUseControllerRotationYaw = false;
+
+		FVector VerticalWallRunRotationVector = VerticalWallRunNormal;
+		VerticalWallRunRotationVector.X *= -1;
+		VerticalWallRunRotationVector.Y *= -1;
+
+		FRotator VerticalWallRunRotation = VerticalWallRunRotationVector.Rotation();
+		SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, VerticalWallRunRotation.Yaw - 30, VerticalWallRunRotation.Yaw + 30);
 
 		return true;
 	}
@@ -946,6 +958,9 @@ void UParkourMovementComponent::EndVerticalWallRun()
 	MovementMode = EMovementMode::MOVE_Falling;
 
 	static_cast<AParkourFPSCharacter*>(GetCharacterOwner())->EndVerticalWallRunMontage();
+
+	GetParkourFPSCharacter()->bAcceptingMovementInput = true;
+	GetParkourFPSCharacter()->bUseControllerRotationYaw = true;
 
 	SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, 0, 359.98993);
 }
@@ -1832,6 +1847,13 @@ void UParkourMovementComponent::SetVerticalWallRunRotation()
 		VerticalWallRunTargetRotation.Yaw = VerticalWallRunTargetRotation.Yaw + 180;
 
 		UE_LOG(LogParkourMovement, Warning, TEXT("Vertical Wall Run Target Rotation: %s"), *VerticalWallRunTargetRotation.ToString());
+
+		GetParkourFPSCharacter()->bAcceptingMovementInput = true;
+		GetParkourFPSCharacter()->bUseControllerRotationYaw = true;
+
+		SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, 0, 359.98993);
+
+		GetParkourFPSCharacter()->AllowYawInput(false);
 	}
 }
 
@@ -1856,6 +1878,15 @@ void UParkourMovementComponent::ApplyVerticalWallRunRotation()
 		{
 			IsRotatingAwayFromWall = false;
 			UE_LOG(LogParkourMovement, Warning, TEXT("ENDING VERTICAL WALL RUN ROTATION"));
+
+			GetParkourFPSCharacter()->bAcceptingMovementInput = false;
+			GetParkourFPSCharacter()->bUseControllerRotationYaw = false;
+
+			FVector VerticalWallRunRotationVector = VerticalWallRunNormal;
+			FRotator VerticalWallRunRotation = VerticalWallRunRotationVector.Rotation();
+			SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, VerticalWallRunRotation.Yaw - 70, VerticalWallRunRotation.Yaw + 70);
+
+			GetParkourFPSCharacter()->AllowYawInput(true);
 		}
 		else
 		{

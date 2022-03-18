@@ -105,6 +105,8 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Vertical Wall Run ", Meta = (AllowPrivateAccess = "true"))
 	float VerticalWallRunRotationCoincidentCosine = 5.0;
 
+	FVector VerticalWallRunNormal;
+
 	// ========================= SLIDING VARIABLES =======================================
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement|Sliding", Meta = (AllowPrivateAccess = "true"))
