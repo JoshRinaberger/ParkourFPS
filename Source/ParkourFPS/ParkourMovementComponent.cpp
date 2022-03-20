@@ -15,6 +15,8 @@
 DEFINE_LOG_CATEGORY(LogMovementCorrections);
 DEFINE_LOG_CATEGORY(LogParkourMovement);
 
+// Things that need to be removed or changed at some point marked with "! DELETE LATER !"
+
 UParkourMovementComponent::UParkourMovementComponent(const FObjectInitializer& ObjectInitializer)
 	:Super(ObjectInitializer)
 {
@@ -62,6 +64,24 @@ void UParkourMovementComponent::TickComponent(float DeltaTime, enum ELevelTick T
 	}
 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	UE_LOG(LogParkourMovement, Warning, TEXT("TICK %i"), GetPawnOwner()->GetLocalRole());
+
+	if (MovementMode == EMovementMode::MOVE_Flying)
+	{
+		UE_LOG(LogParkourMovement, Warning, TEXT("Root Motion Extracted Velocity: %s  %i"), *AnimRootMotionVelocity.ToString(), GetPawnOwner()->GetLocalRole());
+
+		if (GetPawnOwner()->GetLocalRole() == 2)
+		{
+			UE_LOG(LogParkourMovement, Warning, TEXT("Root Count CLIENT: %i"), ClientRootCount);
+			ClientRootCount++;
+		}
+		else
+		{
+			UE_LOG(LogParkourMovement, Warning, TEXT("Root Count SERVER: %i"), ServerRootcount);
+			ServerRootcount++;
+		}
+	}
 }
 
 AParkourFPSCharacter* UParkourMovementComponent::GetParkourFPSCharacter()
@@ -215,6 +235,8 @@ void UParkourMovementComponent::OnMovementUpdated(float DeltaSeconds, const FVec
 		{
 			ServerSetWantsToStopLedgeHang(WantsToStopLedgeHang);
 		}
+
+		ServerSetWantsToClimbLedge(WantsToClimbLedge);
 	}
 
 	DoCustomJump();
@@ -225,19 +247,13 @@ void UParkourMovementComponent::OnMovementUpdated(float DeltaSeconds, const FVec
 
 	ApplyVerticalWallRunRotation();
 
-	if (IsVerticalWallRunning && CheckCanHangLedge())
+	if (IsVerticalWallRunning && CheckCanHangLedge() && IsFacingTowardsWall)
 	{
 		EndVerticalWallRun();
 		BeginLedgeHang();
 	}
 
-	if (IsLedgeHanging)
-	{
-		if (WantsToStopLedgeHang)
-		{
-			EndLedgeHang();
-		}
-	}
+	UpdateLedgeHangState();
 }
 
 void UParkourMovementComponent::OnActorHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit)
@@ -1546,6 +1562,8 @@ void UParkourMovementComponent::BeginLedgeHang()
 	SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, LedgeRotation.Yaw - 70, LedgeRotation.Yaw + 70);
 
 	Velocity = FVector(0, 0, CharacterOwner->GetActorLocation().Z - LedgeHeight - LedgeHeightOffset);
+
+	WantsToClimbLedge = false;
 }
 
 void UParkourMovementComponent::EndLedgeHang()
@@ -1563,6 +1581,45 @@ void UParkourMovementComponent::EndLedgeHang()
 	GetParkourFPSCharacter()->bUseControllerRotationYaw = true;
 
 	SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, 0, 359.98993);
+}
+
+void UParkourMovementComponent::UpdateLedgeHangState()
+{
+	if (IsLedgeHanging)
+	{
+		if (WantsToStopLedgeHang)
+		{
+			EndLedgeHang();
+		}
+
+		if (WantsToClimbLedge && Velocity == FVector(0, 0, 0))
+		{
+			EndLedgeHang();
+
+			// Temporary adjustment to make sure that the character is high enough to clear the ledge.
+			// Should be removed when the proper animations are put in.
+			// ! DELETE LATER !
+			FVector AdjustedLocation = GetCharacterOwner()->GetActorLocation();
+			AdjustedLocation.Z += 60;
+			GetCharacterOwner()->SetActorLocation(AdjustedLocation);
+
+			UE_LOG(LogParkourMovement, Warning, TEXT("Begin Climb %i"), GetPawnOwner()->GetLocalRole());
+			UE_LOG(LogParkourMovement, Warning, TEXT("Climb Start Position: %s %i"), *CharacterOwner->GetActorLocation().ToString(), GetPawnOwner()->GetLocalRole());
+
+			SetMovementMode(EMovementMode::MOVE_Flying);
+			GetParkourFPSCharacter()->bAcceptingMovementInput = false;
+			GetParkourFPSCharacter()->bUseControllerRotationYaw = false;
+			GetParkourFPSCharacter()->PlayClimbMontage();
+		}
+	}
+}
+
+void UParkourMovementComponent::EndClimbLedge()
+{
+	SetMovementMode(EMovementMode::MOVE_Falling);
+	GetParkourFPSCharacter()->bAcceptingMovementInput = true;
+	GetParkourFPSCharacter()->bUseControllerRotationYaw = true;
+	UE_LOG(LogParkourMovement, Warning, TEXT("Climb End Position: %s %i"), *CharacterOwner->GetActorLocation().ToString(), GetPawnOwner()->GetLocalRole());
 }
 
 #pragma endregion
@@ -2260,6 +2317,21 @@ void UParkourMovementComponent::ServerSetWantsToStopLedgeHang_Implementation(con
 	WantsToStopLedgeHang = WantsToStop;
 }
 
+void UParkourMovementComponent::SetWantsToClimbLedge(bool KeyIsDown)
+{
+	WantsToClimbLedge = KeyIsDown;
+}
+
+bool UParkourMovementComponent::ServerSetWantsToClimbLedge_Validate(const bool WantsToClimb)
+{
+	return true;
+}
+
+void UParkourMovementComponent::ServerSetWantsToClimbLedge_Implementation(const bool WantsToClimb)
+{
+	WantsToClimbLedge = WantsToClimb;
+}
+
 bool UParkourMovementComponent::IsCustomMovementMode(uint8 custom_movement_mode) const
 {
 	return MovementMode == EMovementMode::MOVE_Custom && CustomMovementMode == custom_movement_mode;
@@ -2278,7 +2350,7 @@ void UParkourMovementComponent::ClientAdjustPosition(float TimeStamp, FVector Ne
 	bool bBaseRelativePosition, uint8 ServerMovementMode)
 {
 	LogClientCorrection(true, TimeStamp, NewLoc, NewVel, ServerMovementMode);
-	//Super::ClientAdjustPosition(TimeStamp, NewLoc, NewVel, NewBase, NewBaseBoneName, bHasBase, bBaseRelativePosition, ServerMovementMode);
+	Super::ClientAdjustPosition(TimeStamp, NewLoc, NewVel, NewBase, NewBaseBoneName, bHasBase, bBaseRelativePosition, ServerMovementMode);
 }
 
 void UParkourMovementComponent::LogClientCorrection(bool isServer, float TimeStamp, FVector NewLocation, FVector NewVelocity, uint8 ServerMovementMode)
@@ -2338,6 +2410,7 @@ void FSavedMove_My::Clear()
 	SavedWantsToClimbLadderDown = false;
 
 	SavedWantsToStopLedgeHang = false;
+	SavedWantsToClimbLedge = false;
 }
 
 uint8 FSavedMove_My::GetCompressedFlags() const
@@ -2390,6 +2463,7 @@ void FSavedMove_My::SetMoveFor(ACharacter* Character, float InDeltaTime, FVector
 		SavedWantsToClimbLadderDown = charMove->WantsToClimbLadderDown;
 
 		SavedWantsToStopLedgeHang = charMove->WantsToStopLedgeHang;
+		SavedWantsToClimbLedge = charMove->WantsToClimbLedge;
 	}
 }
 
@@ -2414,6 +2488,7 @@ void FSavedMove_My::PrepMoveFor(class ACharacter* Character)
 		charMove->WantsToClimbLadderDown = SavedWantsToClimbLadderDown;
 
 		charMove->WantsToStopLedgeHang = SavedWantsToStopLedgeHang;
+		charMove->WantsToClimbLedge = SavedWantsToClimbLedge;
 	}
 }
 

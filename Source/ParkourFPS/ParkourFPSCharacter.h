@@ -137,5 +137,8 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void EndZiplineMontage();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void PlayClimbMontage();
 };
 

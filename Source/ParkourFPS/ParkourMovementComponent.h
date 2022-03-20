@@ -22,6 +22,9 @@ class PARKOURFPS_API UParkourMovementComponent : public UCharacterMovementCompon
 	friend class FSavedMove_My;
 
 private:
+	int ClientRootCount;
+	int ServerRootcount;
+
 	// used for wallrunning
 	bool MovementKey1Down = false;
 	// used for sliding
@@ -41,6 +44,7 @@ private:
 	uint8 WantsToClimbLadderDown : 1;
 
 	uint8 WantsToStopLedgeHang : 1;
+	uint8 WantsToClimbLedge : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Character Movement", Meta = (AllowPrivateAccess = "true"))
 	bool DrawDebug = true;
@@ -277,6 +281,10 @@ protected:
 	void BeginLedgeHang();
 	void EndLedgeHang();
 	void PhysLedgeHang(float DeltaTime, int32 Iterations);
+	void UpdateLedgeHangState();
+
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	void EndClimbLedge();
 
 
 public:
@@ -337,6 +345,11 @@ public:
 	UFUNCTION(Unreliable, Server, WithValidation)
 	void ServerSetWantsToStopLedgeHang(const bool WantsToStop);
 
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	void SetWantsToClimbLedge(bool KeyIsDown);
+
+	UFUNCTION(Reliable, Server, WithValidation)
+	void ServerSetWantsToClimbLedge(const bool WantsToClimb);
 
 
 	bool IsCustomMovementMode(uint8 custom_movement_mode) const;
@@ -377,6 +390,7 @@ private:
 	uint8 SavedWantsToClimbLadderDown : 1;
 
 	uint8 SavedWantsToStopLedgeHang;
+	uint8 SavedWantsToClimbLedge;
 };
 
 class FNetworkPredictionData_Client_My : public FNetworkPredictionData_Client_Character
@@ -402,7 +416,8 @@ enum ECustomMovementMode
 	CMOVE_Sliding		UMETA(DisplayName = "Sliding"),
 	CMOVE_Ziplining		UMETA(DisplayName = "Ziplining"),
 	CMOVE_Vaulting		UMETA(DisplayName = "Vaulting"),
-	CMOVE_ClimbLadder		UMETA(DisplayName = "ClimbLadder"),
+	CMOVE_ClimbLadder	UMETA(DisplayName = "ClimbLadder"),
+	CMOVE_ClimbLedge	UMETA(DisplayName = "ClimbLedge"),
 	CMOVE_MAX			UMETA(Hidden),
 };
 
