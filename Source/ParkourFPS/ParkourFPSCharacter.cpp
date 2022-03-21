@@ -176,42 +176,47 @@ void AParkourFPSCharacter::AllowYawInput(bool IsAllowed)
 		return;
 	}
 
+
+	int TurnIndex = -1;
+	int TurnRateIndex = -1;
+
+	// Save turn index
+	for (int i = 0; i < InputComponent->AxisBindings.Num(); i++)
+	{
+		if (InputComponent->AxisBindings[i].AxisName == "Turn")
+		{
+			TurnIndex = i;
+		}
+	}
+
+	if (InputComponent->AxisBindings.IsValidIndex(TurnIndex) && IsAllowed == false)
+	{
+		InputComponent->AxisBindings.RemoveAt(TurnIndex);
+	}
+
+	// Save turn rate index
+	for (int i = 0; i < InputComponent->AxisBindings.Num(); i++)
+	{
+		if (InputComponent->AxisBindings[i].AxisName == "TurnRate")
+		{
+			TurnRateIndex = TurnIndex;
+		}
+	}
+
+	if (InputComponent->AxisBindings.IsValidIndex(TurnRateIndex) && IsAllowed == false)
+	{
+		InputComponent->AxisBindings.RemoveAt(TurnRateIndex);
+	}
+
 	if (IsAllowed)
 	{
-		InputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
-		InputComponent->BindAxis("TurnRate", this, &AParkourFPSCharacter::TurnAtRate);
-	}
-	else
-	{
-		int TurnIndex = -1;
-		int TurnRateIndex = -1;
-
-		// Save turn index
-		for (int i = 0; i < InputComponent->AxisBindings.Num(); i++)
+		if (InputComponent->AxisBindings.IsValidIndex(TurnIndex) == false)
 		{
-			if (InputComponent->AxisBindings[i].AxisName == "Turn")
-			{
-				TurnIndex = i;
-			}
+			InputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
 		}
-
-		if (InputComponent->AxisBindings.IsValidIndex(TurnIndex))
+		if (InputComponent->AxisBindings.IsValidIndex(TurnRateIndex) == false)
 		{
-			InputComponent->AxisBindings.RemoveAt(TurnIndex);
-		}
-
-		// Save turn rate index
-		for (int i = 0; i < InputComponent->AxisBindings.Num(); i++)
-		{
-			if (InputComponent->AxisBindings[i].AxisName == "TurnRate")
-			{
-				TurnRateIndex = TurnIndex;
-			}
-		}
-
-		if (InputComponent->AxisBindings.IsValidIndex(TurnRateIndex))
-		{
-			InputComponent->AxisBindings.RemoveAt(TurnRateIndex);
+			InputComponent->BindAxis("TurnRate", this, &AParkourFPSCharacter::TurnAtRate);
 		}
 	}
 }

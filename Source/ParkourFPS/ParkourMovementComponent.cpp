@@ -977,6 +977,7 @@ void UParkourMovementComponent::EndVerticalWallRun()
 
 	GetParkourFPSCharacter()->bAcceptingMovementInput = true;
 	GetParkourFPSCharacter()->bUseControllerRotationYaw = true;
+	GetParkourFPSCharacter()->AllowYawInput(true);
 
 	SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, 0, 359.98993);
 }
