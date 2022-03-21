@@ -1036,7 +1036,7 @@ void UParkourMovementComponent::BeginSlide()
 	{
 		//SetMovementMode(EMovementMode::MOVE_Custom, ECustomMovementMode::CMOVE_Sliding);
 	}
-
+	
 	IsCrouched = true;
 	IsSliding = true;
 
@@ -1596,6 +1596,8 @@ void UParkourMovementComponent::UpdateLedgeHangState()
 		{
 			EndLedgeHang();
 
+			IsClimbingLedge = true;
+
 			// Temporary adjustment to make sure that the character is high enough to clear the ledge.
 			// Should be removed when the proper animations are put in.
 			// ! DELETE LATER !
@@ -1605,8 +1607,10 @@ void UParkourMovementComponent::UpdateLedgeHangState()
 
 			UE_LOG(LogParkourMovement, Warning, TEXT("Begin Climb %i"), GetPawnOwner()->GetLocalRole());
 			UE_LOG(LogParkourMovement, Warning, TEXT("Climb Start Position: %s %i"), *CharacterOwner->GetActorLocation().ToString(), GetPawnOwner()->GetLocalRole());
-
+			
 			SetMovementMode(EMovementMode::MOVE_Flying);
+			bIgnoreClientMovementErrorChecksAndCorrection = true;
+
 			GetParkourFPSCharacter()->bAcceptingMovementInput = false;
 			GetParkourFPSCharacter()->bUseControllerRotationYaw = false;
 			GetParkourFPSCharacter()->PlayClimbMontage();
@@ -1616,9 +1620,16 @@ void UParkourMovementComponent::UpdateLedgeHangState()
 
 void UParkourMovementComponent::EndClimbLedge()
 {
+	IsClimbingLedge = false;
+
 	SetMovementMode(EMovementMode::MOVE_Falling);
+	bIgnoreClientMovementErrorChecksAndCorrection = false;
+
 	GetParkourFPSCharacter()->bAcceptingMovementInput = true;
 	GetParkourFPSCharacter()->bUseControllerRotationYaw = true;
+
+	SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, 0, 359.98993);
+
 	UE_LOG(LogParkourMovement, Warning, TEXT("Climb End Position: %s %i"), *CharacterOwner->GetActorLocation().ToString(), GetPawnOwner()->GetLocalRole());
 }
 

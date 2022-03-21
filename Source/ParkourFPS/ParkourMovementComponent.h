@@ -196,6 +196,8 @@ private:
 	FVector LedgeNormal;
 	float LedgeHeight;
 
+	bool IsClimbingLedge = false;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
@@ -348,7 +350,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	void SetWantsToClimbLedge(bool KeyIsDown);
 
-	UFUNCTION(Reliable, Server, WithValidation)
+	UFUNCTION(Unreliable, Server, WithValidation)
 	void ServerSetWantsToClimbLedge(const bool WantsToClimb);
 
 
