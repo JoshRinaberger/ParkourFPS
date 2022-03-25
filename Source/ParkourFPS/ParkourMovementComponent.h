@@ -197,6 +197,7 @@ private:
 	float LedgeHeight;
 
 	bool IsClimbingLedge = false;
+	bool ClimbQueued = false;
 
 protected:
 	virtual void BeginPlay() override;

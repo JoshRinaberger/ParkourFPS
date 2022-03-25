@@ -63,25 +63,17 @@ void UParkourMovementComponent::TickComponent(float DeltaTime, enum ELevelTick T
 		WantsToVerticalWallRun = MovementKey3Down;
 	}
 
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-	UE_LOG(LogParkourMovement, Warning, TEXT("TICK %i"), GetPawnOwner()->GetLocalRole());
-
 	if (MovementMode == EMovementMode::MOVE_Flying)
 	{
-		UE_LOG(LogParkourMovement, Warning, TEXT("Root Motion Extracted Velocity: %s  %i"), *AnimRootMotionVelocity.ToString(), GetPawnOwner()->GetLocalRole());
-
-		if (GetPawnOwner()->GetLocalRole() == 2)
+		if (ClimbQueued)
 		{
-			UE_LOG(LogParkourMovement, Warning, TEXT("Root Count CLIENT: %i"), ClientRootCount);
-			ClientRootCount++;
-		}
-		else
-		{
-			UE_LOG(LogParkourMovement, Warning, TEXT("Root Count SERVER: %i"), ServerRootcount);
-			ServerRootcount++;
+			ClimbQueued = false;
+			GetParkourFPSCharacter()->PlayClimbMontage();
 		}
 	}
+
+
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }
 
 AParkourFPSCharacter* UParkourMovementComponent::GetParkourFPSCharacter()
@@ -1610,11 +1602,10 @@ void UParkourMovementComponent::UpdateLedgeHangState()
 			UE_LOG(LogParkourMovement, Warning, TEXT("Climb Start Position: %s %i"), *CharacterOwner->GetActorLocation().ToString(), GetPawnOwner()->GetLocalRole());
 			
 			SetMovementMode(EMovementMode::MOVE_Flying);
-			bIgnoreClientMovementErrorChecksAndCorrection = true;
 
 			GetParkourFPSCharacter()->bAcceptingMovementInput = false;
 			GetParkourFPSCharacter()->bUseControllerRotationYaw = false;
-			GetParkourFPSCharacter()->PlayClimbMontage();
+			ClimbQueued = true;
 		}
 	}
 }
@@ -1624,7 +1615,6 @@ void UParkourMovementComponent::EndClimbLedge()
 	IsClimbingLedge = false;
 
 	SetMovementMode(EMovementMode::MOVE_Falling);
-	bIgnoreClientMovementErrorChecksAndCorrection = false;
 
 	GetParkourFPSCharacter()->bAcceptingMovementInput = true;
 	GetParkourFPSCharacter()->bUseControllerRotationYaw = true;

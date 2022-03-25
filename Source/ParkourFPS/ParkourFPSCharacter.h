@@ -82,7 +82,8 @@ public:
 
 
 
-	bool bAcceptingMovementInput = true;
+	bool bAcceptingMovementInput = true;;
+
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void PlaySlideStartMontage();
