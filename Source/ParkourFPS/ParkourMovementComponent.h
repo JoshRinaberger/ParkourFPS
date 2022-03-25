@@ -198,6 +198,7 @@ private:
 
 	bool IsClimbingLedge = false;
 	bool ClimbQueued = false;
+	bool EndClimbQueued = false;
 
 protected:
 	virtual void BeginPlay() override;

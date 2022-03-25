@@ -246,6 +246,12 @@ void UParkourMovementComponent::OnMovementUpdated(float DeltaSeconds, const FVec
 	}
 
 	UpdateLedgeHangState();
+
+	if (EndClimbQueued)
+	{
+		SetMovementMode(EMovementMode::MOVE_Falling);
+		EndClimbQueued = false;
+	}
 }
 
 void UParkourMovementComponent::OnActorHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit)
@@ -1613,8 +1619,7 @@ void UParkourMovementComponent::UpdateLedgeHangState()
 void UParkourMovementComponent::EndClimbLedge()
 {
 	IsClimbingLedge = false;
-
-	SetMovementMode(EMovementMode::MOVE_Falling);
+	EndClimbQueued = true;
 
 	GetParkourFPSCharacter()->bAcceptingMovementInput = true;
 	GetParkourFPSCharacter()->bUseControllerRotationYaw = true;
