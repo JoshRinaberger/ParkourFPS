@@ -287,6 +287,8 @@ protected:
 	void PhysLedgeHang(float DeltaTime, int32 Iterations);
 	void UpdateLedgeHangState();
 
+	void BeginClimbLedge();
+
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	void EndClimbLedge();
 

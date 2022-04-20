@@ -1594,26 +1594,38 @@ void UParkourMovementComponent::UpdateLedgeHangState()
 		if (WantsToClimbLedge && Velocity == FVector(0, 0, 0))
 		{
 			EndLedgeHang();
-
-			IsClimbingLedge = true;
-
-			// Temporary adjustment to make sure that the character is high enough to clear the ledge.
-			// Should be removed when the proper animations are put in.
-			// ! DELETE LATER !
-			FVector AdjustedLocation = GetCharacterOwner()->GetActorLocation();
-			AdjustedLocation.Z += 60;
-			GetCharacterOwner()->SetActorLocation(AdjustedLocation);
-
-			UE_LOG(LogParkourMovement, Warning, TEXT("Begin Climb %i"), GetPawnOwner()->GetLocalRole());
-			UE_LOG(LogParkourMovement, Warning, TEXT("Climb Start Position: %s %i"), *CharacterOwner->GetActorLocation().ToString(), GetPawnOwner()->GetLocalRole());
-			
-			SetMovementMode(EMovementMode::MOVE_Flying);
-
-			GetParkourFPSCharacter()->bAcceptingMovementInput = false;
-			GetParkourFPSCharacter()->bUseControllerRotationYaw = false;
-			ClimbQueued = true;
+			BeginClimbLedge();
 		}
 	}
+}
+
+void UParkourMovementComponent::BeginClimbLedge()
+{
+	IsClimbingLedge = true;
+	ClimbQueued = true;
+
+	// Temporary adjustment to make sure that the character is high enough to clear the ledge.
+	// Should be removed when the proper animations are put in.
+	// ! DELETE LATER !
+	FVector AdjustedLocation = GetCharacterOwner()->GetActorLocation();
+	AdjustedLocation.Z += 60;
+	GetCharacterOwner()->SetActorLocation(AdjustedLocation);
+
+	UE_LOG(LogParkourMovement, Warning, TEXT("Begin Climb %i"), GetPawnOwner()->GetLocalRole());
+	UE_LOG(LogParkourMovement, Warning, TEXT("Climb Start Position: %s %i"), *CharacterOwner->GetActorLocation().ToString(), GetPawnOwner()->GetLocalRole());
+
+	SetMovementMode(EMovementMode::MOVE_Flying);
+
+	GetParkourFPSCharacter()->bAcceptingMovementInput = false;
+	GetParkourFPSCharacter()->bUseControllerRotationYaw = false;
+
+
+	FVector LedgeRotationVector = LedgeNormal;
+	LedgeRotationVector.X *= -1;
+	LedgeRotationVector.Y *= -1;
+
+	FRotator LedgeRotation = LedgeRotationVector.Rotation();
+	SetCameraRotationLimit(-89.00002, 89.00002, -89.00002, 89.00002, LedgeRotation.Yaw - 70, LedgeRotation.Yaw + 70);
 }
 
 void UParkourMovementComponent::EndClimbLedge()
